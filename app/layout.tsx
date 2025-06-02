@@ -30,7 +30,7 @@ function RootLayoutClient({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
       <SidebarProvider>
-        <div className="flex min-h-screen">
+        <div className="w-full flex min-h-screen">
           <DashboardSidebar />
           <main className="flex-1">{children}</main>
         </div>

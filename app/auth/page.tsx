@@ -52,14 +52,8 @@ export default function AuthPage() {
     // In a real app, this would verify the OTP
     setTimeout(() => {
       console.log("Verifying OTP", otp.join(""))
-      // Check if user has completed profile
-      const isProfileComplete = false
-
-      if (isProfileComplete) {
-        router.push("/releases")
-      } else {
-        router.push("/onboarding")
-      }
+      // Redirect to onboarding page after OTP verification
+      router.push("/onboarding")
     }, 1000)
   }
 

@@ -9,13 +9,6 @@ export default function Home() {
     redirect("/auth")
   }
 
-  // If authenticated but profile not complete, redirect to onboarding
-  const isProfileComplete = false
-
-  if (!isProfileComplete) {
-    redirect("/onboarding")
-  }
-
-  // Otherwise redirect directly to releases page
+  // Redirect directly to releases page if authenticated
   redirect("/releases")
 }

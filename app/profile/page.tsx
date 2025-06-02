@@ -49,6 +49,13 @@ const userData = {
     facebook: "https://facebook.com/johnsmith",
     website: "https://johnsmith.com",
   },
+  bankDetails: {
+    accountHolderName: "John Smith",
+    bankName: "State Bank of India",
+    accountNumber: "1234567890",
+    ifscCode: "SBIN0001234",
+    accountType: "Savings",
+  },
   stats: {
     totalReleases: 12,
     totalTracks: 28,
@@ -69,7 +76,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container max-w-6xl py-8">
+    <div className="container max-w-7xl py-8">
       <div className="flex flex-col md:flex-row gap-8">
         {/* Left column - Profile card */}
         <div className="md:w-1/3">
@@ -182,7 +189,7 @@ export default function ProfilePage() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="releases">Releases</TabsTrigger>
+              <TabsTrigger value="bank-details">Bank Details</TabsTrigger>
               <TabsTrigger value="edit-profile">Edit Profile</TabsTrigger>
             </TabsList>
 
@@ -240,75 +247,92 @@ export default function ProfilePage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="releases" className="space-y-6">
+            <TabsContent value="bank-details" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-xl">Recent Releases</CardTitle>
+                  <CardTitle className="text-xl">Bank Details</CardTitle>
+                  <CardDescription>Add your Indian bank account details for receiving payments</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-16 w-16 relative rounded-md overflow-hidden">
-                      <Image src="/placeholder-ko8hn.png" alt="Summer Vibes" fill className="object-cover" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium">Summer Vibes</h3>
-                        <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
-                          Live
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Released on {format(new Date("2023-06-15"), "MMMM d, yyyy")}
-                      </p>
-                      <p className="text-sm">2 tracks</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="h-16 w-16 relative rounded-md overflow-hidden">
-                      <Image
-                        src="/midnight-dreams-album-cover.png"
-                        alt="Midnight Dreams"
-                        fill
-                        className="object-cover"
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="accountHolderName">Account Holder Name</Label>
+                      <Input
+                        id="accountHolderName"
+                        value={profileData.bankDetails.accountHolderName}
+                        onChange={(e) =>
+                          setProfileData({
+                            ...profileData,
+                            bankDetails: { ...profileData.bankDetails, accountHolderName: e.target.value },
+                          })
+                        }
                       />
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium">Midnight Dreams</h3>
-                        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
-                          Pending
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Released on {format(new Date("2023-08-22"), "MMMM d, yyyy")}
-                      </p>
-                      <p className="text-sm">1 track</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="bankName">Bank Name</Label>
+                      <Input
+                        id="bankName"
+                        value={profileData.bankDetails.bankName}
+                        onChange={(e) =>
+                          setProfileData({
+                            ...profileData,
+                            bankDetails: { ...profileData.bankDetails, bankName: e.target.value },
+                          })
+                        }
+                      />
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="h-16 w-16 relative rounded-md overflow-hidden">
-                      <Image src="/placeholder-szg6c.png" alt="Urban Echoes" fill className="object-cover" />
+                    <div className="space-y-2">
+                      <Label htmlFor="accountNumber">Account Number</Label>
+                      <Input
+                        id="accountNumber"
+                        value={profileData.bankDetails.accountNumber}
+                        onChange={(e) =>
+                          setProfileData({
+                            ...profileData,
+                            bankDetails: { ...profileData.bankDetails, accountNumber: e.target.value },
+                          })
+                        }
+                        maxLength={18}
+                      />
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium">Urban Echoes</h3>
-                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                          Under Review
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Released on {format(new Date("2023-10-05"), "MMMM d, yyyy")}
-                      </p>
-                      <p className="text-sm">3 tracks</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="ifscCode">IFSC Code</Label>
+                      <Input
+                        id="ifscCode"
+                        value={profileData.bankDetails.ifscCode}
+                        onChange={(e) =>
+                          setProfileData({
+                            ...profileData,
+                            bankDetails: { ...profileData.bankDetails, ifscCode: e.target.value.toUpperCase() },
+                          })
+                        }
+                        maxLength={11}
+                        placeholder="e.g., SBIN0001234"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="accountType">Account Type</Label>
+                      <select
+                        id="accountType"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={profileData.bankDetails.accountType}
+                        onChange={(e) =>
+                          setProfileData({
+                            ...profileData,
+                            bankDetails: { ...profileData.bankDetails, accountType: e.target.value },
+                          })
+                        }
+                      >
+                        <option value="Savings">Savings Account</option>
+                        <option value="Current">Current Account</option>
+                      </select>
                     </div>
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" className="w-full">
-                    View All Releases
-                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Note: Your bank details are encrypted and stored securely. We use these details only for processing your payments.
+                  </p>
                 </CardFooter>
               </Card>
             </TabsContent>
@@ -378,6 +402,7 @@ export default function ProfilePage() {
                         value={profileData.location}
                         onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
                       />
+
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="artistType">Artist Type</Label>
@@ -501,3 +526,4 @@ export default function ProfilePage() {
     </div>
   )
 }
+

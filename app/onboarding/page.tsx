@@ -150,9 +150,9 @@ export default function OnboardingPage() {
       <div className="w-full max-w-4xl relative z-10 mx-auto">
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-6">
-            <div className="relative w-48 h-16">
+            <div className="relative w-52 h-16">
               <Image
-                src="/SP Music Zone Logo.png"
+                src="/logo.png"
                 alt="SP Music Zone"
                 fill
                 className="object-contain"

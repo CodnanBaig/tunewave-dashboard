@@ -119,66 +119,68 @@ export function ReleaseCard({ release, viewMode }: ReleaseCardProps) {
 
   return (
     <Card className="overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1 group">
-      <Link href={`/releases/${release.id}`} className="block">
-        <div className="aspect-square relative">
-          <Image
-            src={release.artwork || "/placeholder.svg?height=300&width=300&query=music"}
-            alt={release.title}
-            fill
-            className="object-cover"
-          />
+      <div className="relative">
+        <Link href={`/releases/${release.id}`} className="block">
+          <div className="aspect-square relative">
+            <Image
+              src={release.artwork || "/placeholder.svg?height=300&width=300&query=music"}
+              alt={release.title}
+              fill
+              className="object-cover"
+            />
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-            <div className="w-full">
-              <div className="flex gap-2 mb-2">
-                <Badge className={cn("border", statusColors[release.status as keyof typeof statusColors])}>
-                  {statusLabels[release.status as keyof typeof statusLabels]}
-                </Badge>
-                {isDraft && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 hover:text-white"
-                    asChild
-                  >
-                    <Link href={`/releases/${release.id}/edit`} onClick={(e) => e.stopPropagation()}>
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit
-                    </Link>
-                  </Button>
-                )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+              <div className="w-full">
+                <div className="flex gap-2 mb-2">
+                  <Badge className={cn("border", statusColors[release.status as keyof typeof statusColors])}>
+                    {statusLabels[release.status as keyof typeof statusLabels]}
+                  </Badge>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 hover:text-white"
+                >
+                  View Details
+                </Button>
               </div>
+            </div>
+          </div>
+          <CardContent className="p-4">
+            <h3 className="font-medium truncate text-base">{release.title}</h3>
+            <div className="flex items-center mt-1 gap-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                <span>{formattedDate}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Music className="h-3 w-3" />
+                <span>
+                  {release.tracks} {release.tracks === 1 ? "track" : "tracks"}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="pt-0 px-4 pb-4 flex justify-between items-center">
+            <Badge className={cn("border", statusColors[release.status as keyof typeof statusColors])}>
+              {statusLabels[release.status as keyof typeof statusLabels]}
+            </Badge>
+            {isDraft && (
               <Button
-                variant="default"
+                variant="ghost"
                 size="sm"
-                className="w-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 hover:text-white"
+                className="h-6 hover:bg-primary/10 hover:text-primary"
+                asChild
               >
-                View Details
+                <Link href={`/releases/${release.id}/edit`} onClick={(e) => e.stopPropagation()}>
+                  <Edit className="h-3 w-3" />
+                  <span className="sr-only">Edit</span>
+                </Link>
               </Button>
-            </div>
-          </div>
-        </div>
-        <CardContent className="p-4">
-          <h3 className="font-medium truncate text-base">{release.title}</h3>
-          <div className="flex items-center mt-1 gap-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              <span>{formattedDate}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Music className="h-3 w-3" />
-              <span>
-                {release.tracks} {release.tracks === 1 ? "track" : "tracks"}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="pt-0 px-4 pb-4 flex justify-between items-center">
-          <Badge className={cn("border", statusColors[release.status as keyof typeof statusColors])}>
-            {statusLabels[release.status as keyof typeof statusLabels]}
-          </Badge>
-        </CardFooter>
-      </Link>
+            )}
+          </CardFooter>
+        </Link>
+      </div>
     </Card>
   )
 }
