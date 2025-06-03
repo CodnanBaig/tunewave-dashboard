@@ -22,10 +22,12 @@ interface FormData {
   country: string
   gender: string
   dateOfBirth: Date | undefined
-  genres: string[]
+  address: string
+  city: string
+  pincode: string
+  state: string
   artistType: string
   experience: string
-  bio: string
 }
 
 interface FormErrors {
@@ -34,10 +36,12 @@ interface FormErrors {
   country?: string
   gender?: string
   dateOfBirth?: string
-  genres?: string
+  address?: string
+  city?: string
+  pincode?: string
+  state?: string
   artistType?: string
   experience?: string
-  bio?: string
 }
 
 export default function OnboardingPage() {
@@ -50,15 +54,17 @@ export default function OnboardingPage() {
     country: "",
     gender: "",
     dateOfBirth: undefined,
-    genres: [],
+    address: "",
+    city: "",
+    pincode: "",
+    state: "",
     artistType: "",
     experience: "",
-    bio: "",
   })
   const [errors, setErrors] = useState<FormErrors>({})
   const [formComplete, setFormComplete] = useState({
     personalInfo: false,
-    preferences: false,
+    addressDetails: false,
   })
 
   const validateEmail = (email: string) => {
@@ -97,22 +103,26 @@ export default function OnboardingPage() {
   const validateStep2 = () => {
     const newErrors: FormErrors = {}
     
-    if (formData.genres.length === 0) {
-      newErrors.genres = "Please select at least one genre"
+    if (!formData.address.trim()) {
+      newErrors.address = "Address is required"
+    }
+    
+    if (!formData.city.trim()) {
+      newErrors.city = "City is required"
+    }
+    
+    if (!formData.pincode.trim()) {
+      newErrors.pincode = "Pincode is required"
+    } else if (!/^\d{6}$/.test(formData.pincode)) {
+      newErrors.pincode = "Please enter a valid 6-digit pincode"
+    }
+    
+    if (!formData.state.trim()) {
+      newErrors.state = "State is required"
     }
     
     if (!formData.artistType) {
-      newErrors.artistType = "Artist type is required"
-    }
-    
-    if (!formData.experience) {
-      newErrors.experience = "Experience level is required"
-    }
-    
-    if (!formData.bio.trim()) {
-      newErrors.bio = "Artist bio is required"
-    } else if (formData.bio.trim().length < 50) {
-      newErrors.bio = "Bio must be at least 50 characters"
+      newErrors.artistType = "User type is required"
     }
 
     setErrors(newErrors)
@@ -136,7 +146,7 @@ export default function OnboardingPage() {
 
   const steps = [
     { id: 1, name: "Personal Information" },
-    { id: 2, name: "Music Preferences" },
+    { id: 2, name: "Address Details" },
   ]
 
   return (
@@ -176,7 +186,7 @@ export default function OnboardingPage() {
                   className={`flex h-10 w-10 items-center justify-center rounded-full border-2 
                     ${step >= s.id ? "border-white bg-white/10 text-white" : "border-gray-700 text-gray-500"}`}
                 >
-                  {formComplete[s.id === 1 ? "personalInfo" : "preferences"] ? (
+                  {formComplete[s.id === 1 ? "personalInfo" : "addressDetails"] ? (
                     <CheckCircle2 className="h-5 w-5" />
                   ) : (
                     s.id
@@ -344,43 +354,84 @@ export default function OnboardingPage() {
         {step === 2 && (
           <Card className="border border-gray-800 shadow-2xl bg-gray-900/90 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-2xl text-white">Music Preferences</CardTitle>
-              <CardDescription className="text-gray-400">Tell us about your music preferences</CardDescription>
+              <CardTitle className="text-2xl text-white">Address Details</CardTitle>
+              <CardDescription className="text-gray-400">Please provide your address information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="genres" className="font-medium text-gray-300">
-                  Favorite Genres
+                <Label htmlFor="address" className="font-medium text-gray-300">
+                  Address
                 </Label>
-                <Select
-                  value={formData.genres[0]}
-                  onValueChange={(value) => setFormData({ ...formData, genres: [value] })}
-                >
-                  <SelectTrigger 
-                    id="genres" 
+                <textarea
+                  id="address"
+                  rows={3}
+                  placeholder="Enter your full address..."
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className={cn(
+                    "w-full rounded-md border border-gray-700 bg-gray-800/50 p-3 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white",
+                    errors.address && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                  )}
+                />
+                {errors.address && <p className="text-sm text-red-500 mt-1">{errors.address}</p>}
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="city" className="font-medium text-gray-300">
+                    City
+                  </Label>
+                  <Input
+                    id="city"
+                    placeholder="Enter your city"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     className={cn(
-                      "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
-                      errors.genres && "border-red-500"
+                      "h-11 border-gray-700 bg-gray-800/50 text-gray-100 placeholder:text-gray-500 focus:border-white focus:ring focus:ring-white/20",
+                      errors.city && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                     )}
-                  >
-                    <SelectValue placeholder="Select genres" />
-                  </SelectTrigger>
-                  <SelectContent className="border-gray-800">
-                    <SelectItem value="pop">Pop</SelectItem>
-                    <SelectItem value="rock">Rock</SelectItem>
-                    <SelectItem value="hiphop">Hip Hop</SelectItem>
-                    <SelectItem value="electronic">Electronic</SelectItem>
-                    <SelectItem value="classical">Classical</SelectItem>
-                    <SelectItem value="jazz">Jazz</SelectItem>
-                    <SelectItem value="folk">Folk</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.genres && <p className="text-sm text-red-500 mt-1">{errors.genres}</p>}
+                  />
+                  {errors.city && <p className="text-sm text-red-500 mt-1">{errors.city}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="pincode" className="font-medium text-gray-300">
+                    Pincode
+                  </Label>
+                  <Input
+                    id="pincode"
+                    placeholder="Enter 6-digit pincode"
+                    value={formData.pincode}
+                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                    className={cn(
+                      "h-11 border-gray-700 bg-gray-800/50 text-gray-100 placeholder:text-gray-500 focus:border-white focus:ring focus:ring-white/20",
+                      errors.pincode && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                    )}
+                  />
+                  {errors.pincode && <p className="text-sm text-red-500 mt-1">{errors.pincode}</p>}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="state" className="font-medium text-gray-300">
+                  State
+                </Label>
+                <Input
+                  id="state"
+                  placeholder="Enter your state"
+                  value={formData.state}
+                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                  className={cn(
+                    "h-11 border-gray-700 bg-gray-800/50 text-gray-100 placeholder:text-gray-500 focus:border-white focus:ring focus:ring-white/20",
+                    errors.state && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                  )}
+                />
+                {errors.state && <p className="text-sm text-red-500 mt-1">{errors.state}</p>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="artist-type" className="font-medium text-gray-300">
-                  Artist Type
+                  User Type
                 </Label>
                 <Select
                   value={formData.artistType}
@@ -397,16 +448,13 @@ export default function OnboardingPage() {
                   </SelectTrigger>
                   <SelectContent className="border-gray-800">
                     <SelectItem value="solo">Solo Artist</SelectItem>
-                    <SelectItem value="band">Band</SelectItem>
-                    <SelectItem value="producer">Producer</SelectItem>
-                    <SelectItem value="composer">Composer</SelectItem>
-                    <SelectItem value="dj">DJ</SelectItem>
+                    <SelectItem value="label">Label</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.artistType && <p className="text-sm text-red-500 mt-1">{errors.artistType}</p>}
               </div>
 
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label htmlFor="experience" className="font-medium text-gray-300">
                   Music Experience
                 </Label>
@@ -431,25 +479,7 @@ export default function OnboardingPage() {
                   </SelectContent>
                 </Select>
                 {errors.experience && <p className="text-sm text-red-500 mt-1">{errors.experience}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio" className="font-medium text-gray-300">
-                  Artist Bio
-                </Label>
-                <textarea
-                  id="bio"
-                  rows={4}
-                  placeholder="Tell us about yourself as an artist..."
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  className={cn(
-                    "w-full rounded-md border border-gray-700 bg-gray-800/50 p-3 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white",
-                    errors.bio && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                  )}
-                />
-                {errors.bio && <p className="text-sm text-red-500 mt-1">{errors.bio}</p>}
-              </div>
+              </div> */}
             </CardContent>
             <CardFooter className="flex justify-between border-t border-gray-800 bg-gray-900/50 p-6">
               <Button 
