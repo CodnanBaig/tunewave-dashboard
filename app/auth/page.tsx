@@ -9,39 +9,62 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Mail, Lock } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function AuthPage() {
   const router = useRouter()
-  const [step, setStep] = useState<"phone" | "otp">("phone")
-  const [phoneNumber, setPhoneNumber] = useState("")
+  const [authMethod, setAuthMethod] = useState<"email-password" | "email-otp">("email-password")
+  const [step, setStep] = useState<"email" | "otp" | "password">("email")
+  
+  // Email/Password state
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  
+  // Email OTP state
   const [otp, setOtp] = useState(["", "", "", "", "", ""])
+  
   const [isLoading, setIsLoading] = useState(false)
   const [focusedInput, setFocusedInput] = useState<number | null>(null)
 
-  // Add validation function
-  const isValidPhoneNumber = (phone: string) => {
-    // Remove any non-digit characters and check if length is exactly 10
-    const digitsOnly = phone.replace(/\D/g, '')
-    return digitsOnly.length === 10
+  // Validation functions
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   }
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    // Only allow digits, +, and -
-    const sanitizedValue = value.replace(/[^\d+-]/g, '')
-    setPhoneNumber(sanitizedValue)
+  const isValidPassword = (password: string) => {
+    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/.test(password)
   }
 
-  const handleSendOTP = () => {
-    if (!phoneNumber) return
+  const handleEmailSubmit = () => {
+    if (!isValidEmail(email)) return
 
     setIsLoading(true)
-    // In a real app, this would call an API to send OTP
-    setTimeout(() => {
-      console.log("Sending OTP to", phoneNumber)
-      setStep("otp")
+    if (authMethod === "email-password") {
+      // In a real app, this would check if user exists
+      setStep("password")
       setIsLoading(false)
+    } else {
+      // Send OTP
+      setTimeout(() => {
+        console.log("Sending OTP to", email)
+        setStep("otp")
+        setIsLoading(false)
+      }, 1000)
+    }
+  }
+
+  const handlePasswordSubmit = () => {
+    if (!isValidPassword(password)) return
+    if (password !== confirmPassword) return
+
+    setIsLoading(true)
+    // In a real app, this would register/login the user
+    setTimeout(() => {
+      console.log("Registering with email/password", { email, password })
+      router.push("/onboarding")
     }, 1000)
   }
 
@@ -52,7 +75,6 @@ export default function AuthPage() {
     // In a real app, this would verify the OTP
     setTimeout(() => {
       console.log("Verifying OTP", otp.join(""))
-      // Redirect to onboarding page after OTP verification
       router.push("/onboarding")
     }, 1000)
   }
@@ -127,41 +149,88 @@ export default function AuthPage() {
                 />
               </div>
             </div>
-            <div>
-              <CardDescription className="text-muted-foreground mt-2">
-                {step === "phone"
-                  ? "Enter your mobile number to continue"
-                  : "Enter the verification code sent to your mobile"}
-              </CardDescription>
-            </div>
+            <Tabs defaultValue="email-password" className="w-full" onValueChange={(value) => {
+              setAuthMethod(value as "email-password" | "email-otp")
+              setStep("email")
+            }}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="email-password">Email & Password</TabsTrigger>
+                <TabsTrigger value="email-otp">Email OTP</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </CardHeader>
 
           <CardContent className="space-y-4 px-6">
-            {step === "phone" ? (
+            {step === "email" && (
               <div className="space-y-3">
-                <Label htmlFor="phone" className="text-sm font-medium">
-                  Mobile Number
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email Address
                 </Label>
                 <div className="relative">
                   <Input
-                    id="phone"
-                    placeholder="+91-XXXXXXXXXX"
-                    value={phoneNumber}
-                    onChange={handlePhoneChange}
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className={`pl-4 h-12 rounded-lg border-border/50 bg-background/50 focus-visible:ring-primary/20 ${
                       focusedInput === 0 ? "border-primary ring ring-primary/20" : ""
                     }`}
                     onFocus={() => setFocusedInput(0)}
                     onBlur={() => setFocusedInput(null)}
                   />
-                  {phoneNumber && !isValidPhoneNumber(phoneNumber) && (
+                  {email && !isValidEmail(email) && (
                     <p className="text-sm text-destructive mt-1">
-                      Please enter a valid 10-digit phone number
+                      Please enter a valid email address
                     </p>
                   )}
                 </div>
               </div>
-            ) : (
+            )}
+
+            {step === "password" && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-12 rounded-lg border-border/50 bg-background/50"
+                  />
+                  {password && !isValidPassword(password) && (
+                    <p className="text-sm text-destructive mt-1">
+                      Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                    Confirm Password
+                  </Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="h-12 rounded-lg border-border/50 bg-background/50"
+                  />
+                  {confirmPassword && password !== confirmPassword && (
+                    <p className="text-sm text-destructive mt-1">
+                      Passwords do not match
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {step === "otp" && (
               <div className="space-y-3">
                 <Label htmlFor="otp" className="text-sm font-medium">
                   Verification Code
@@ -187,11 +256,11 @@ export default function AuthPage() {
                   ))}
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <p className="text-sm text-muted-foreground">Code sent to {phoneNumber}</p>
+                  <p className="text-sm text-muted-foreground">Code sent to {email}</p>
                   <Button
                     variant="link"
                     className="p-0 h-auto text-primary hover:text-primary/90"
-                    onClick={() => setStep("phone")}
+                    onClick={() => setStep("email")}
                   >
                     Change
                   </Button>
@@ -203,14 +272,31 @@ export default function AuthPage() {
           <CardFooter className="px-6 pb-6">
             <Button
               className="w-full h-12 bg-gradient-primary hover:opacity-90 transition-opacity text-white rounded-lg flex items-center justify-center gap-2 shadow-lg group"
-              onClick={step === "phone" ? handleSendOTP : handleVerifyOTP}
-              disabled={isLoading || (step === "phone" ? !isValidPhoneNumber(phoneNumber) : otp.some((digit) => !digit))}
+              onClick={
+                step === "email" 
+                  ? handleEmailSubmit 
+                  : step === "password" 
+                    ? handlePasswordSubmit 
+                    : handleVerifyOTP
+              }
+              disabled={
+                isLoading || 
+                (step === "email" 
+                  ? !isValidEmail(email)
+                  : step === "password"
+                    ? !isValidPassword(password) || password !== confirmPassword
+                    : otp.some((digit) => !digit))
+              }
             >
               {isLoading ? (
                 <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <span className="group-hover:text-black transition-colors">
-                  {step === "phone" ? "Send Verification Code" : "Verify & Continue"}
+                  {step === "email" 
+                    ? "Continue" 
+                    : step === "password" 
+                      ? "Create Account" 
+                      : "Verify & Continue"}
                   <ArrowRight className="h-4 w-4 ml-1 inline" />
                 </span>
               )}

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/components/ui/use-toast"
 import { format } from "date-fns"
-import { IndianRupee, Wallet, ArrowUpRight } from "lucide-react"
+import { Wallet, ArrowUpRight } from "lucide-react"
+import { useCurrency } from "@/lib/currency-context"
 
 type TransactionStatus = "completed" | "pending" | "failed"
 type TransactionType = "withdrawal" | "deposit"
@@ -60,6 +61,7 @@ const statusColors: Record<TransactionStatus, string> = {
 
 export default function WalletPage() {
   const { toast } = useToast()
+  const { formatAmount } = useCurrency()
   const [walletData, setWalletData] = useState(mockWalletData)
   const [isWithdrawing, setIsWithdrawing] = useState(false)
 
@@ -110,9 +112,8 @@ export default function WalletPage() {
           <CardDescription>Your current available balance</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-baseline gap-2">
-            <IndianRupee className="h-6 w-6" />
-            <span className="text-4xl font-bold">{walletData.balance.toLocaleString()}</span>
+          <div className="text-4xl font-bold">
+            {formatAmount(walletData.balance)}
           </div>
         </CardContent>
         <CardFooter>
@@ -134,7 +135,7 @@ export default function WalletPage() {
       </Card>
 
       {/* Transaction History */}
-      <Card className="w-full">
+      <Card>
         <CardHeader>
           <CardTitle>Transaction History</CardTitle>
           <CardDescription>Your recent wallet transactions</CardDescription>
@@ -156,10 +157,7 @@ export default function WalletPage() {
                     {format(new Date(transaction.date), "MMM d, yyyy h:mm a")}
                   </TableCell>
                   <TableCell>
-                    <span className="flex items-center gap-1">
-                      <IndianRupee className="h-4 w-4" />
-                      {transaction.amount.toLocaleString()}
-                    </span>
+                    {formatAmount(transaction.amount)}
                   </TableCell>
                   <TableCell className="capitalize">{transaction.type}</TableCell>
                   <TableCell>

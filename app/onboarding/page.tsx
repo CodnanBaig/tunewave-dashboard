@@ -28,6 +28,16 @@ interface FormData {
   state: string
   artistType: string
   experience: string
+  isIndianNational: boolean | null
+  pancardFile: File | null
+  aadhaarFile: File | null
+  passportFile: File | null
+  accountNumber: string
+  ifscCode: string
+  swiftCode: string
+  accountHolderName: string
+  bankName: string
+  bankAddress: string
 }
 
 interface FormErrors {
@@ -42,6 +52,16 @@ interface FormErrors {
   state?: string
   artistType?: string
   experience?: string
+  isIndianNational?: string
+  pancardFile?: string
+  aadhaarFile?: string
+  passportFile?: string
+  accountNumber?: string
+  ifscCode?: string
+  swiftCode?: string
+  accountHolderName?: string
+  bankName?: string
+  bankAddress?: string
 }
 
 export default function OnboardingPage() {
@@ -60,11 +80,22 @@ export default function OnboardingPage() {
     state: "",
     artistType: "",
     experience: "",
+    isIndianNational: null,
+    pancardFile: null,
+    aadhaarFile: null,
+    passportFile: null,
+    accountNumber: "",
+    ifscCode: "",
+    swiftCode: "",
+    accountHolderName: "",
+    bankName: "",
+    bankAddress: "",
   })
   const [errors, setErrors] = useState<FormErrors>({})
   const [formComplete, setFormComplete] = useState({
     personalInfo: false,
     addressDetails: false,
+    kycDetails: false,
   })
 
   const validateEmail = (email: string) => {
@@ -129,8 +160,71 @@ export default function OnboardingPage() {
     return Object.keys(newErrors).length === 0
   }
 
+  const validateStep3 = () => {
+    const newErrors: FormErrors = {}
+    
+    if (formData.isIndianNational === null) {
+      newErrors.isIndianNational = "Please select your nationality"
+      setErrors(newErrors)
+      return false
+    }
+
+    if (formData.isIndianNational) {
+      // Validate Indian KYC documents
+      if (!formData.pancardFile) {
+        newErrors.pancardFile = "PAN Card is required"
+      }
+      if (!formData.aadhaarFile) {
+        newErrors.aadhaarFile = "Aadhaar Card is required"
+      }
+      
+      // Validate Indian bank details
+      if (!formData.accountNumber.trim()) {
+        newErrors.accountNumber = "Account number is required"
+      }
+      if (!formData.ifscCode.trim()) {
+        newErrors.ifscCode = "IFSC code is required"
+      } else if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifscCode)) {
+        newErrors.ifscCode = "Please enter a valid IFSC code"
+      }
+      if (!formData.accountHolderName.trim()) {
+        newErrors.accountHolderName = "Account holder name is required"
+      }
+      if (!formData.bankName.trim()) {
+        newErrors.bankName = "Bank name is required"
+      }
+    } else {
+      // Validate International KYC documents
+      if (!formData.passportFile) {
+        newErrors.passportFile = "Passport or Government ID is required"
+      }
+      
+      // Validate International bank details
+      if (!formData.accountNumber.trim()) {
+        newErrors.accountNumber = "Account number is required"
+      }
+      if (!formData.swiftCode.trim()) {
+        newErrors.swiftCode = "SWIFT/BIC code is required"
+      } else if (!/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(formData.swiftCode)) {
+        newErrors.swiftCode = "Please enter a valid SWIFT/BIC code"
+      }
+      if (!formData.accountHolderName.trim()) {
+        newErrors.accountHolderName = "Account holder name is required"
+      }
+      if (!formData.bankName.trim()) {
+        newErrors.bankName = "Bank name is required"
+      }
+      if (!formData.bankAddress.trim()) {
+        newErrors.bankAddress = "Bank address is required"
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSaveProfile = () => {
-    if (validateStep2()) {
+    if (validateStep3()) {
       // In a real app, this would save the profile data
       console.log("Saving profile", formData)
       router.push("/releases")
@@ -138,16 +232,24 @@ export default function OnboardingPage() {
   }
 
   const handleContinue = () => {
-    if (validateStep1()) {
+    if (step === 1 && validateStep1()) {
       setFormComplete({ ...formComplete, personalInfo: true })
       setStep(2)
+    } else if (step === 2 && validateStep2()) {
+      setFormComplete({ ...formComplete, addressDetails: true })
+      setStep(3)
     }
   }
 
   const steps = [
     { id: 1, name: "Personal Information" },
     { id: 2, name: "Address Details" },
+    { id: 3, name: "KYC Verification" },
   ]
+
+  const handleFileChange = (field: keyof FormData, file: File | null) => {
+    setFormData({ ...formData, [field]: file })
+  }
 
   return (
     <div className="grid place-items-center min-h-screen w-full bg-gradient-to-br from-gray-950 via-gray-900 to-black p-4 overflow-hidden">
@@ -186,7 +288,7 @@ export default function OnboardingPage() {
                   className={`flex h-10 w-10 items-center justify-center rounded-full border-2 
                     ${step >= s.id ? "border-white bg-white/10 text-white" : "border-gray-700 text-gray-500"}`}
                 >
-                  {formComplete[s.id === 1 ? "personalInfo" : "addressDetails"] ? (
+                  {formComplete[s.id === 1 ? "personalInfo" : s.id === 2 ? "addressDetails" : "kycDetails"] ? (
                     <CheckCircle2 className="h-5 w-5" />
                   ) : (
                     s.id
@@ -447,7 +549,7 @@ export default function OnboardingPage() {
                     <SelectValue placeholder="Select artist type" />
                   </SelectTrigger>
                   <SelectContent className="border-gray-800">
-                    <SelectItem value="solo">Solo Artist</SelectItem>
+                    <SelectItem value="solo">Artist</SelectItem>
                     <SelectItem value="label">Label</SelectItem>
                   </SelectContent>
                 </Select>
@@ -485,6 +587,290 @@ export default function OnboardingPage() {
               <Button 
                 variant="outline" 
                 onClick={() => setStep(1)} 
+                className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+              >
+                Back
+              </Button>
+              <Button
+                className="px-8 bg-white text-black hover:bg-gray-100"
+                onClick={handleContinue}
+              >
+                Continue
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
+
+        {step === 3 && (
+          <Card className="border border-gray-800 shadow-2xl bg-gray-900/90 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-2xl text-white">KYC Verification</CardTitle>
+              <CardDescription className="text-gray-400">
+                Please provide your verification documents and bank details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {formData.isIndianNational === null ? (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-white">Are you an Indian National?</h3>
+                  <div className="flex gap-4">
+                    <Button
+                      variant={formData.isIndianNational === true ? "default" : "outline"}
+                      className={cn(
+                        "flex-1 h-12",
+                        formData.isIndianNational === true
+                          ? "bg-white text-black hover:bg-gray-100"
+                          : "border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+                      )}
+                      onClick={() => setFormData({ ...formData, isIndianNational: true })}
+                    >
+                      Yes
+                    </Button>
+                    <Button
+                      variant={formData.isIndianNational === false ? "default" : "outline"}
+                      className={cn(
+                        "flex-1 h-12",
+                        formData.isIndianNational === false
+                          ? "bg-white text-black hover:bg-gray-100"
+                          : "border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+                      )}
+                      onClick={() => setFormData({ ...formData, isIndianNational: false })}
+                    >
+                      No
+                    </Button>
+                  </div>
+                  {errors.isIndianNational && (
+                    <p className="text-sm text-red-500 mt-1">{errors.isIndianNational}</p>
+                  )}
+                </div>
+              ) : formData.isIndianNational ? (
+                <>
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-white">Indian KYC Documents</h3>
+                    <div className="space-y-2">
+                      <Label htmlFor="pancard" className="font-medium text-gray-300">
+                        PAN Card
+                      </Label>
+                      <Input
+                        id="pancard"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => handleFileChange("pancardFile", e.target.files?.[0] || null)}
+                        className={cn(
+                          "h-11 border-gray-700 bg-gray-800/50 text-gray-100 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-white/10 file:text-white hover:file:bg-white/20",
+                          errors.pancardFile && "border-red-500"
+                        )}
+                      />
+                      {errors.pancardFile && <p className="text-sm text-red-500 mt-1">{errors.pancardFile}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="aadhaar" className="font-medium text-gray-300">
+                        Aadhaar Card
+                      </Label>
+                      <Input
+                        id="aadhaar"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => handleFileChange("aadhaarFile", e.target.files?.[0] || null)}
+                        className={cn(
+                          "h-11 border-gray-700 bg-gray-800/50 text-gray-100 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-white/10 file:text-white hover:file:bg-white/20",
+                          errors.aadhaarFile && "border-red-500"
+                        )}
+                      />
+                      {errors.aadhaarFile && <p className="text-sm text-red-500 mt-1">{errors.aadhaarFile}</p>}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-white">Indian Bank Details</h3>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="accountNumber" className="font-medium text-gray-300">
+                          Account Number
+                        </Label>
+                        <Input
+                          id="accountNumber"
+                          value={formData.accountNumber}
+                          onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                          className={cn(
+                            "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
+                            errors.accountNumber && "border-red-500"
+                          )}
+                        />
+                        {errors.accountNumber && <p className="text-sm text-red-500 mt-1">{errors.accountNumber}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="ifscCode" className="font-medium text-gray-300">
+                          IFSC Code
+                        </Label>
+                        <Input
+                          id="ifscCode"
+                          value={formData.ifscCode}
+                          onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value.toUpperCase() })}
+                          className={cn(
+                            "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
+                            errors.ifscCode && "border-red-500"
+                          )}
+                        />
+                        {errors.ifscCode && <p className="text-sm text-red-500 mt-1">{errors.ifscCode}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="accountHolderName" className="font-medium text-gray-300">
+                          Account Holder Name
+                        </Label>
+                        <Input
+                          id="accountHolderName"
+                          value={formData.accountHolderName}
+                          onChange={(e) => setFormData({ ...formData, accountHolderName: e.target.value })}
+                          className={cn(
+                            "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
+                            errors.accountHolderName && "border-red-500"
+                          )}
+                        />
+                        {errors.accountHolderName && <p className="text-sm text-red-500 mt-1">{errors.accountHolderName}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="bankName" className="font-medium text-gray-300">
+                          Bank Name
+                        </Label>
+                        <Input
+                          id="bankName"
+                          value={formData.bankName}
+                          onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                          className={cn(
+                            "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
+                            errors.bankName && "border-red-500"
+                          )}
+                        />
+                        {errors.bankName && <p className="text-sm text-red-500 mt-1">{errors.bankName}</p>}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-white">International KYC Documents</h3>
+                    <div className="space-y-2">
+                      <Label htmlFor="passport" className="font-medium text-gray-300">
+                        Passport or Government ID
+                      </Label>
+                      <Input
+                        id="passport"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => handleFileChange("passportFile", e.target.files?.[0] || null)}
+                        className={cn(
+                          "h-11 border-gray-700 bg-gray-800/50 text-gray-100 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-white/10 file:text-white hover:file:bg-white/20",
+                          errors.passportFile && "border-red-500"
+                        )}
+                      />
+                      {errors.passportFile && <p className="text-sm text-red-500 mt-1">{errors.passportFile}</p>}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-white">International Bank Details</h3>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="accountNumber" className="font-medium text-gray-300">
+                          Account Number
+                        </Label>
+                        <Input
+                          id="accountNumber"
+                          value={formData.accountNumber}
+                          onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                          className={cn(
+                            "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
+                            errors.accountNumber && "border-red-500"
+                          )}
+                        />
+                        {errors.accountNumber && <p className="text-sm text-red-500 mt-1">{errors.accountNumber}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="swiftCode" className="font-medium text-gray-300">
+                          SWIFT/BIC Code
+                        </Label>
+                        <Input
+                          id="swiftCode"
+                          value={formData.swiftCode}
+                          onChange={(e) => setFormData({ ...formData, swiftCode: e.target.value.toUpperCase() })}
+                          className={cn(
+                            "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
+                            errors.swiftCode && "border-red-500"
+                          )}
+                        />
+                        {errors.swiftCode && <p className="text-sm text-red-500 mt-1">{errors.swiftCode}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="accountHolderName" className="font-medium text-gray-300">
+                          Account Holder Name
+                        </Label>
+                        <Input
+                          id="accountHolderName"
+                          value={formData.accountHolderName}
+                          onChange={(e) => setFormData({ ...formData, accountHolderName: e.target.value })}
+                          className={cn(
+                            "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
+                            errors.accountHolderName && "border-red-500"
+                          )}
+                        />
+                        {errors.accountHolderName && <p className="text-sm text-red-500 mt-1">{errors.accountHolderName}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="bankName" className="font-medium text-gray-300">
+                          Bank Name
+                        </Label>
+                        <Input
+                          id="bankName"
+                          value={formData.bankName}
+                          onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                          className={cn(
+                            "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
+                            errors.bankName && "border-red-500"
+                          )}
+                        />
+                        {errors.bankName && <p className="text-sm text-red-500 mt-1">{errors.bankName}</p>}
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="bankAddress" className="font-medium text-gray-300">
+                          Bank Address
+                        </Label>
+                        <textarea
+                          id="bankAddress"
+                          rows={3}
+                          value={formData.bankAddress}
+                          onChange={(e) => setFormData({ ...formData, bankAddress: e.target.value })}
+                          className={cn(
+                            "w-full rounded-md border border-gray-700 bg-gray-800/50 p-3 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white",
+                            errors.bankAddress && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                          )}
+                        />
+                        {errors.bankAddress && <p className="text-sm text-red-500 mt-1">{errors.bankAddress}</p>}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+            <CardFooter className="flex justify-between border-t border-gray-800 bg-gray-900/50 p-6">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  if (formData.isIndianNational !== null) {
+                    setFormData({ ...formData, isIndianNational: null })
+                  } else {
+                    setStep(2)
+                  }
+                }}
                 className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
               >
                 Back

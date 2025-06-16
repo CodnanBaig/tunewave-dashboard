@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Music, User, Settings, LogOut, PlusCircle, HelpCircle, FileText, Youtube, Headphones, Wallet } from "lucide-react";
+import { Home, Music, User, Settings, LogOut, PlusCircle, HelpCircle, FileText, Youtube, Headphones, Wallet, DollarSign, Bell } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -23,10 +23,16 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useCurrency } from "@/lib/currency-context";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 export function DashboardSidebar() {
   const pathname = usePathname();
   const [isReleasesOpen, setIsReleasesOpen] = useState(false);
+  const { currency, setCurrency } = useCurrency();
+  // This would typically come from your backend/API or a notification context
+  const unreadNotificationsCount = 3; // Mock count - replace with real data
 
   const isActive = (path: string) => {
     return pathname === path;
@@ -112,6 +118,28 @@ export function DashboardSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/notifications")}
+                  tooltip="Notifications"
+                >
+                  <Link href="/notifications" className="flex items-center gap-2">
+                    <span className="relative">
+                      <Bell />
+                      {unreadNotificationsCount > 0 && (
+                        <Badge
+                          variant="destructive"
+                          className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                        >
+                          {unreadNotificationsCount}
+                        </Badge>
+                      )}
+                    </span>
+                    <span>Notifications</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -174,14 +202,20 @@ export function DashboardSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
-        >
-          <LogOut className="h-4 w-4" />
-          <Link href="/" className="group-data-[collapsible=icon]:hidden">Logout</Link>
-        </Button>
+
+      <SidebarFooter className="p-4">
+        <div className="flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Select value={currency} onValueChange={(value) => setCurrency(value as 'USD' | 'INR')}>
+            <SelectTrigger className="h-8 w-[100px]">
+              <SelectValue placeholder="Currency" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="USD">USD ($)</SelectItem>
+              <SelectItem value="INR">INR (₹)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

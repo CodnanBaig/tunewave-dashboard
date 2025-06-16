@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { usePathname } from "next/navigation"
+import { CurrencyProvider } from "@/lib/currency-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -29,12 +30,14 @@ function RootLayoutClient({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-      <SidebarProvider>
-        <div className="w-full flex min-h-screen">
-          <DashboardSidebar />
-          <main className="flex-1">{children}</main>
-        </div>
-      </SidebarProvider>
+      <CurrencyProvider>
+        <SidebarProvider>
+          <div className="w-full flex min-h-screen">
+            <DashboardSidebar />
+            <main className="flex-1">{children}</main>
+          </div>
+        </SidebarProvider>
+      </CurrencyProvider>
     </ThemeProvider>
   )
 }

@@ -57,6 +57,7 @@ const existingArtists = [
 const initialReleaseState = {
   title: "",
   releaseDate: null as Date | null,
+  metaReleaseDate: null as Date | null, // Add meta release date
   label: "",
   youtubeContentId: false,
   artwork: null as File | null,
@@ -78,6 +79,7 @@ const initialTrackState = {
   composers: [] as Artist[],
   producers: [] as Artist[],
   audioFile: null as File | null,
+  crbts: [] as CRBT[], // Initialize empty CRBTs array
 }
 
 // Types
@@ -90,6 +92,11 @@ type Artist = {
   appleMusic?: string
   youtube?: string
   role: string
+}
+
+type CRBT = {
+  name: string
+  timing: string
 }
 
 type Track = {
@@ -106,6 +113,7 @@ type Track = {
   composers: Artist[]
   producers: Artist[]
   audioFile: File | null
+  crbts: CRBT[] // Add CRBTs to track type
 }
 
 export default function NewReleasePage() {
@@ -130,6 +138,10 @@ export default function NewReleasePage() {
 
     if (!release.releaseDate) {
       newErrors.releaseDate = "Release date is required"
+    }
+
+    if (release.metaReleaseDate && release.metaReleaseDate > release.releaseDate!) {
+      newErrors.metaReleaseDate = "Meta release date cannot be after the actual release date"
     }
 
     if (!release.label) {
@@ -157,6 +169,22 @@ export default function NewReleasePage() {
 
     if (!currentTrack.genre) {
       newErrors.genre = "Genre is required"
+    }
+
+    // Validate CRBTs
+    if (currentTrack.crbts.length > 0) {
+      currentTrack.crbts.forEach((crbt, index) => {
+        if (!crbt.name.trim()) {
+          newErrors[`crbtName${index}`] = "CRBT name is required"
+        }
+        if (!crbt.timing.trim()) {
+          newErrors[`crbtTiming${index}`] = "CRBT timing is required"
+        }
+        // Validate timing format (MM:SS)
+        if (crbt.timing.trim() && !/^\d{2}:\d{2}$/.test(crbt.timing.trim())) {
+          newErrors[`crbtTiming${index}`] = "Timing must be in MM:SS format"
+        }
+      })
     }
 
     setErrors(newErrors)
@@ -244,7 +272,8 @@ export default function NewReleasePage() {
           release.title.trim() &&
           release.releaseDate &&
           release.label &&
-          release.artwork
+          release.artwork &&
+          (!release.metaReleaseDate || release.metaReleaseDate <= release.releaseDate)
         )
       case 2:
         return Boolean(
@@ -745,39 +774,78 @@ export default function NewReleasePage() {
                 {errors.title && <p className="text-xs text-red-500 font-medium">{errors.title}</p>}
               </div>
 
-              <div className="space-y-3">
-                <Label htmlFor="releaseDate" className="text-base">
-                  Release Date
-                </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal h-11 text-base transition-all",
-                        !release.releaseDate && "text-muted-foreground",
-                        errors.releaseDate
-                          ? "border-red-500 focus-visible:ring-red-300"
-                          : "focus-visible:ring-primary/20",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-5 w-5" />
-                      {release.releaseDate ? format(release.releaseDate, "PPP") : "Select date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={release.releaseDate || undefined}
-                      onSelect={(date) => setRelease({ ...release, releaseDate: date })}
-                      disabled={(date) => date < minReleaseDate}
-                      initialFocus
-                      className="rounded-md border"
-                    />
-                  </PopoverContent>
-                </Popover>
-                <p className="text-xs text-muted-foreground">Release date must be at least 2 days from today</p>
-                {errors.releaseDate && <p className="text-xs text-red-500 font-medium">{errors.releaseDate}</p>}
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-3">
+                  <Label htmlFor="releaseDate" className="text-base">
+                    Release Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal h-11 text-base transition-all",
+                          !release.releaseDate && "text-muted-foreground",
+                          errors.releaseDate
+                            ? "border-red-500 focus-visible:ring-red-300"
+                            : "focus-visible:ring-primary/20",
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-5 w-5" />
+                        {release.releaseDate ? format(release.releaseDate, "PPP") : "Select date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={release.releaseDate ? new Date(release.releaseDate) : undefined}
+                        onSelect={(date) => setRelease({ ...release, releaseDate: date || null})}
+                        disabled={(date) => date < minReleaseDate}
+                        initialFocus
+                        className="rounded-md border"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-muted-foreground">Release date must be at least 2 days from today</p>
+                  {errors.releaseDate && <p className="text-xs text-red-500 font-medium">{errors.releaseDate}</p>}
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="metaReleaseDate" className="text-base">
+                    Meta Release Date <span className="text-muted-foreground">(Optional)</span>
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal h-11 text-base transition-all",
+                          !release.metaReleaseDate && "text-muted-foreground",
+                          errors.metaReleaseDate
+                            ? "border-red-500 focus-visible:ring-red-300"
+                            : "focus-visible:ring-primary/20",
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-5 w-5" />
+                        {release.metaReleaseDate ? format(release.metaReleaseDate, "PPP") : "Select date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={release.metaReleaseDate ? new Date(release.metaReleaseDate) : undefined}
+                        onSelect={(date) => setRelease({ ...release, metaReleaseDate: date || null})}
+                        disabled={(date) => date > (release.releaseDate || new Date())}
+                        initialFocus
+                        className="rounded-md border"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-muted-foreground">
+                    Optional date for metadata purposes. Cannot be after the actual release date.
+                  </p>
+                  {errors.metaReleaseDate && <p className="text-xs text-red-500 font-medium">{errors.metaReleaseDate}</p>}
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -1059,6 +1127,104 @@ export default function NewReleasePage() {
                 />
               </div>
 
+              {/* CRBT Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium flex items-center gap-2">
+                    <span className="w-2 h-6 bg-purple-500 rounded-sm"></span>
+                    CRBTs
+                  </h3>
+                  <Badge variant="outline" className="font-semibold">
+                    Max 2
+                  </Badge>
+                </div>
+
+                {/* Current CRBTs */}
+                <div className="space-y-3">
+                  {currentTrack.crbts.length > 0 ? (
+                    currentTrack.crbts.map((crbt, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 border rounded-md bg-card hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex-1 grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm text-muted-foreground">CRBT Name</Label>
+                            <Input
+                              value={crbt.name}
+                              onChange={(e) => {
+                                const newCrbts = [...currentTrack.crbts]
+                                newCrbts[index] = { ...crbt, name: e.target.value }
+                                setCurrentTrack({ ...currentTrack, crbts: newCrbts })
+                              }}
+                              className={cn(
+                                "h-9 mt-1",
+                                errors[`crbtName${index}`] ? "border-red-500 focus-visible:ring-red-300" : "focus-visible:ring-primary/20"
+                              )}
+                              placeholder="Enter CRBT name"
+                            />
+                            {errors[`crbtName${index}`] && (
+                              <p className="text-xs text-red-500 font-medium mt-1">{errors[`crbtName${index}`]}</p>
+                            )}
+                          </div>
+                          <div>
+                            <Label className="text-sm text-muted-foreground">Timing (MM:SS)</Label>
+                            <Input
+                              value={crbt.timing}
+                              onChange={(e) => {
+                                const newCrbts = [...currentTrack.crbts]
+                                newCrbts[index] = { ...crbt, timing: e.target.value }
+                                setCurrentTrack({ ...currentTrack, crbts: newCrbts })
+                              }}
+                              className={cn(
+                                "h-9 mt-1",
+                                errors[`crbtTiming${index}`] ? "border-red-500 focus-visible:ring-red-300" : "focus-visible:ring-primary/20"
+                              )}
+                              placeholder="00:00"
+                            />
+                            {errors[`crbtTiming${index}`] && (
+                              <p className="text-xs text-red-500 font-medium mt-1">{errors[`crbtTiming${index}`]}</p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newCrbts = currentTrack.crbts.filter((_, i) => i !== index)
+                            setCurrentTrack({ ...currentTrack, crbts: newCrbts })
+                          }}
+                          className="ml-4 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-6 border rounded-md bg-muted/40 text-center">
+                      <p className="text-sm text-muted-foreground">No CRBTs added yet</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Add CRBT Button */}
+                {currentTrack.crbts.length < 2 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCurrentTrack({
+                        ...currentTrack,
+                        crbts: [...currentTrack.crbts, { name: "", timing: "" }]
+                      })
+                    }}
+                    className="w-full gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add CRBT
+                  </Button>
+                )}
+              </div>
+
               <div className="space-y-3 pt-2">
                 <Label htmlFor="isrc" className="text-base">
                   ISRC Code <span className="text-muted-foreground">(Optional)</span>
@@ -1320,9 +1486,11 @@ export default function NewReleasePage() {
                               handleAddExistingArtist(value, "lyricist")
                             }
                           }}
-                          className={cn(errors.lyricists ? "border-red-500 focus-visible:ring-red-300" : "")}
                         >
-                          <SelectTrigger className="h-11 text-base transition-all focus-visible:ring-primary/20">
+                          <SelectTrigger className={cn(
+                            "h-11 text-base transition-all focus-visible:ring-primary/20",
+                            errors.lyricists && "border-red-500 focus-visible:ring-red-300"
+                          )}>
                             <SelectValue placeholder="Select or add lyricist" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1471,9 +1639,11 @@ export default function NewReleasePage() {
                               handleAddExistingArtist(value, "producer")
                             }
                           }}
-                          className={cn(errors.producers ? "border-red-500 focus-visible:ring-red-300" : "")}
                         >
-                          <SelectTrigger className="h-11 text-base transition-all focus-visible:ring-primary/20">
+                          <SelectTrigger className={cn(
+                            "h-11 text-base transition-all focus-visible:ring-primary/20",
+                            errors.producers && "border-red-500 focus-visible:ring-red-300"
+                          )}>
                             <SelectValue placeholder="Select or add producer" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1758,12 +1928,14 @@ export default function NewReleasePage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Label</p>
-                    <p className="font-medium text-base">{release.label || "Not set"}</p>
+                    <p className="text-sm text-muted-foreground mb-1">Meta Release Date</p>
+                    <p className="font-medium text-base">
+                      {release.metaReleaseDate ? format(release.metaReleaseDate, "MMMM d, yyyy") : "Not set"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">YouTube Content ID</p>
-                    <p className="font-medium text-base">{release.youtubeContentId ? "Yes" : "No"}</p>
+                    <p className="text-sm text-muted-foreground mb-1">Label</p>
+                    <p className="font-medium text-base">{release.label || "Not set"}</p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-sm text-muted-foreground mb-2">Artwork</p>
@@ -1877,6 +2049,21 @@ export default function NewReleasePage() {
                             {track.audioFile?.name}
                           </p>
                         </div>
+
+                        {/* CRBTs Section */}
+                        {track.crbts.length > 0 && (
+                          <div className="space-y-2 border-t pt-3">
+                            <p className="text-sm text-muted-foreground">CRBTs</p>
+                            <div className="space-y-2">
+                              {track.crbts.map((crbt, index) => (
+                                <div key={index} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                                  <p className="font-medium">{crbt.name}</p>
+                                  <Badge variant="secondary">{crbt.timing}</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

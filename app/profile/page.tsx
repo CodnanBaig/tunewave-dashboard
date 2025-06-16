@@ -29,6 +29,7 @@ import {
   CheckCircle2,
 } from "lucide-react"
 import { format } from "date-fns"
+import { useCurrency } from "@/lib/currency-context"
 
 // Mock user data
 const userData = {
@@ -40,7 +41,7 @@ const userData = {
   joinDate: "2023-01-15",
   bio: "Electronic music producer and DJ with over 5 years of experience. Specializing in house and techno music.",
   profileImage: "/placeholder-wipqs.png",
-  artistType: "Solo Artist",
+  artistType: "Artist",
   genres: ["Electronic", "House", "Techno"],
   socialLinks: {
     instagram: "https://instagram.com/johnsmith",
@@ -68,6 +69,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [profileData, setProfileData] = useState(userData)
   const [activeTab, setActiveTab] = useState("overview")
+  const { formatAmount } = useCurrency()
 
   const handleSaveProfile = () => {
     // In a real app, this would save the profile data to the backend
@@ -180,6 +182,27 @@ export default function ProfilePage() {
                   <Globe className="h-5 w-5" />
                 </a>
               </div>
+
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Total Releases</p>
+                    <p className="text-2xl font-bold">{profileData.stats.totalReleases}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Total Tracks</p>
+                    <p className="text-2xl font-bold">{profileData.stats.totalTracks}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Total Streams</p>
+                    <p className="text-2xl font-bold">{profileData.stats.totalStreams.toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Total Revenue</p>
+                    <p className="text-2xl font-bold">{formatAmount(profileData.stats.totalRevenue)}</p>
+                  </div>
+                </div>
+              </CardContent>
             </CardContent>
           </Card>
         </div>
@@ -239,7 +262,7 @@ export default function ProfilePage() {
                     <div>
                       <p className="font-medium">Royalty Payment Received</p>
                       <p className="text-sm text-muted-foreground">
-                        $350 received on {format(new Date("2023-09-01"), "MMMM d, yyyy")}
+                        {formatAmount(350)} received on {format(new Date("2023-09-01"), "MMMM d, yyyy")}
                       </p>
                     </div>
                   </div>

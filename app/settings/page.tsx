@@ -42,6 +42,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useCurrency } from "@/lib/currency-context"
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("account")
@@ -66,6 +67,7 @@ export default function SettingsPage() {
     withdrawThreshold: 50,
   })
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const { currency, setCurrency, formatAmount } = useCurrency()
 
   const handleSaveSettings = () => {
     // In a real app, this would save the settings to the backend
@@ -86,7 +88,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-8">
+        <TabsList className="grid w-full grid-cols-3 mb-8">
           <TabsTrigger value="account" className="flex items-center gap-2">
             <Globe className="h-4 w-4" />
             <span>Account</span>
@@ -95,10 +97,10 @@ export default function SettingsPage() {
             <Bell className="h-4 w-4" />
             <span>Notifications</span>
           </TabsTrigger>
-          <TabsTrigger value="payment" className="flex items-center gap-2">
+          {/* <TabsTrigger value="payment" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
             <span>Payment</span>
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger value="security" className="flex items-center gap-2">
             <Lock className="h-4 w-4" />
             <span>Security</span>
@@ -406,112 +408,77 @@ export default function SettingsPage() {
 
         {/* Payment Settings */}
         <TabsContent value="payment" className="space-y-6">
-          <Card className="border shadow-sm overflow-hidden bg-card/50 backdrop-blur-sm">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
-                Payment Methods
-              </CardTitle>
-              <CardDescription>Manage your payment methods</CardDescription>
+              <CardTitle>Payment Settings</CardTitle>
+              <CardDescription>Manage your payment preferences and withdrawal settings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label>Default Payment Method</Label>
-                <RadioGroup
-                  value={paymentSettings.defaultPaymentMethod}
-                  onValueChange={(value) => setPaymentSettings({ ...paymentSettings, defaultPaymentMethod: value })}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center space-x-2 border rounded-md p-3">
-                    <RadioGroupItem value="bank" id="bank" />
-                    <Label htmlFor="bank" className="flex items-center gap-2 cursor-pointer">
-                      <DollarSign className="h-4 w-4" /> Bank Account (XXXX1234)
-                    </Label>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Default Currency</Label>
+                    <p className="text-sm text-muted-foreground">Select your preferred currency for payments</p>
                   </div>
-                  <div className="flex items-center space-x-2 border rounded-md p-3">
-                    <RadioGroupItem value="paypal" id="paypal" />
-                    <Label htmlFor="paypal" className="flex items-center gap-2 cursor-pointer">
-                      <Wallet className="h-4 w-4" /> PayPal (john.smith@example.com)
-                    </Label>
+                  <Select
+                    value={currency}
+                    onValueChange={(value) => setCurrency(value as 'USD' | 'INR')}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD ($)</SelectItem>
+                      <SelectItem value="INR">INR (₹)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Withdrawal Threshold</Label>
+                      <p className="text-sm text-muted-foreground">Minimum amount required for withdrawal</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={paymentSettings.withdrawThreshold}
+                        onChange={(e) =>
+                          setPaymentSettings({
+                            ...paymentSettings,
+                            withdrawThreshold: Number(e.target.value),
+                          })
+                        }
+                        className="w-[180px]"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {currency === 'USD' ? 'USD' : 'INR'}
+                      </span>
+                    </div>
                   </div>
-                </RadioGroup>
-                <Button variant="outline" className="w-full mt-2">
-                  Add Payment Method
-                </Button>
-              </div>
 
-              <Separator />
-
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select
-                  value={paymentSettings.currency}
-                  onValueChange={(value) => setPaymentSettings({ ...paymentSettings, currency: value })}
-                >
-                  <SelectTrigger id="currency" className="w-full">
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="usd">USD ($)</SelectItem>
-                    <SelectItem value="eur">EUR (€)</SelectItem>
-                    <SelectItem value="gbp">GBP (£)</SelectItem>
-                    <SelectItem value="inr">INR (₹)</SelectItem>
-                    <SelectItem value="jpy">JPY (¥)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border shadow-sm overflow-hidden bg-card/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-primary" />
-                Payout Settings
-              </CardTitle>
-              <CardDescription>Manage your payout preferences</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between space-y-0">
-                <div className="space-y-0.5">
-                  <Label>Automatic Withdrawals</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically withdraw funds when they reach the threshold
-                  </p>
-                </div>
-                <Switch
-                  checked={paymentSettings.autoWithdraw}
-                  onCheckedChange={(checked) => setPaymentSettings({ ...paymentSettings, autoWithdraw: checked })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label>Withdrawal Threshold</Label>
-                  <span className="text-sm font-medium">${paymentSettings.withdrawThreshold}</span>
-                </div>
-                <Slider
-                  value={[paymentSettings.withdrawThreshold]}
-                  min={10}
-                  max={100}
-                  step={10}
-                  onValueChange={(value) => setPaymentSettings({ ...paymentSettings, withdrawThreshold: value[0] })}
-                  disabled={!paymentSettings.autoWithdraw}
-                  className="py-2"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>$10</span>
-                  <span>$100</span>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Auto Withdrawal</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically withdraw when balance reaches {formatAmount(paymentSettings.withdrawThreshold)}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={paymentSettings.autoWithdraw}
+                      onCheckedChange={(checked) =>
+                        setPaymentSettings({ ...paymentSettings, autoWithdraw: checked })
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>
             <CardFooter>
-              <Button
-                onClick={handleSaveSettings}
-                className="w-full bg-gradient-to-r from-primary to-primary/80 hover:shadow-md"
-              >
-                Save Payment Settings
-              </Button>
+              <Button onClick={handleSaveSettings}>Save Changes</Button>
             </CardFooter>
           </Card>
         </TabsContent>
