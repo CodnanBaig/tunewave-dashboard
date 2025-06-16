@@ -16,6 +16,32 @@ export default function ConnectYouTubePage() {
   const [error, setError] = useState<string | null>(null)
   const { formatAmount } = useCurrency()
 
+  const handleConnect = async () => {
+    try {
+      setIsConnecting(true)
+      setError(null)
+      
+      // TODO: Implement actual YouTube channel connection logic
+      // This is a placeholder for the actual implementation
+      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
+      
+      // For now, just show an error if the URL doesn't contain youtube.com
+      if (!channelUrl.includes('youtube.com')) {
+        throw new Error('Please enter a valid YouTube channel URL')
+      }
+      
+      // If successful, you would typically:
+      // 1. Call your backend API to verify the channel
+      // 2. Store the connection in your database
+      // 3. Redirect to a success page or dashboard
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to connect channel')
+    } finally {
+      setIsConnecting(false)
+    }
+  }
+
   return (
     <div className="container max-w-4xl py-8">
       <div className="space-y-6">
