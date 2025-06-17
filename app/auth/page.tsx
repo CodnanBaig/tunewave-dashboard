@@ -16,6 +16,7 @@ export default function AuthPage() {
   const router = useRouter()
   const [authMethod, setAuthMethod] = useState<"email-password" | "email-otp">("email-password")
   const [step, setStep] = useState<"email" | "otp" | "password">("email")
+  const [isLogin, setIsLogin] = useState(true)
   
   // Email/Password state
   const [email, setEmail] = useState("")
@@ -27,6 +28,7 @@ export default function AuthPage() {
   
   const [isLoading, setIsLoading] = useState(false)
   const [focusedInput, setFocusedInput] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // Validation functions
   const isValidEmail = (email: string) => {
@@ -42,8 +44,9 @@ export default function AuthPage() {
     if (!isValidEmail(email)) return
 
     setIsLoading(true)
+    setError(null)
     if (authMethod === "email-password") {
-      // In a real app, this would check if user exists
+      // For email-password, go directly to password step (login flow)
       setStep("password")
       setIsLoading(false)
     } else {
@@ -56,16 +59,91 @@ export default function AuthPage() {
     }
   }
 
-  const handlePasswordSubmit = () => {
-    if (!isValidPassword(password)) return
-    if (password !== confirmPassword) return
+  const handlePasswordSubmit = async () => {
+    if (isLogin) {
+      // Login flow
+      if (!password) return
+      
+      setIsLoading(true)
+      setError(null)
 
-    setIsLoading(true)
-    // In a real app, this would register/login the user
-    setTimeout(() => {
-      console.log("Registering with email/password", { email, password })
-      router.push("/onboarding")
-    }, 1000)
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+        if (!apiBaseUrl) {
+          throw new Error("API base URL not configured")
+        }
+
+        const response = await fetch(`${apiBaseUrl}/tunewave/loginEmailPass`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          },
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || `Login failed: ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log("Login successful:", data)
+        
+        // Navigate to dashboard or releases page on success
+        router.push("/releases")
+      } catch (err) {
+        console.error("Login error:", err)
+        setError(err instanceof Error ? err.message : "Login failed. Please try again.")
+      } finally {
+        setIsLoading(false)
+      }
+    } else {
+      // Registration flow
+      if (!isValidPassword(password)) return
+      if (password !== confirmPassword) return
+
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+        if (!apiBaseUrl) {
+          throw new Error("API base URL not configured")
+        }
+
+        const response = await fetch(`${apiBaseUrl}/tunewave/registerEmailPass`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          },
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || `Registration failed: ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log("Registration successful:", data)
+        
+        // Navigate to onboarding on success
+        router.push("/onboarding")
+      } catch (err) {
+        console.error("Registration error:", err)
+        setError(err instanceof Error ? err.message : "Registration failed. Please try again.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
   }
 
   const handleVerifyOTP = () => {
@@ -125,6 +203,14 @@ export default function AuthPage() {
     })
 
     setOtp(newOtp)
+  }
+
+  const toggleAuthMode = () => {
+    setIsLogin(!isLogin)
+    setPassword("")
+    setConfirmPassword("")
+    setError(null)
+    setStep("email")
   }
 
   return (
@@ -190,6 +276,11 @@ export default function AuthPage() {
 
             {step === "password" && (
               <div className="space-y-3">
+                {error && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-sm font-medium">
                     Password
@@ -197,36 +288,38 @@ export default function AuthPage() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="Enter your password"
+                    placeholder={isLogin ? "Enter your password" : "Enter your password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="h-12 rounded-lg border-border/50 bg-background/50"
                   />
-                  {password && !isValidPassword(password) && (
+                  {!isLogin && password && !isValidPassword(password) && (
                     <p className="text-sm text-destructive mt-1">
                       Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number
                     </p>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-sm font-medium">
-                    Confirm Password
-                  </Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Confirm your password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="h-12 rounded-lg border-border/50 bg-background/50"
-                  />
-                  {confirmPassword && password !== confirmPassword && (
-                    <p className="text-sm text-destructive mt-1">
-                      Passwords do not match
-                    </p>
-                  )}
-                </div>
+                {!isLogin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                      Confirm Password
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="h-12 rounded-lg border-border/50 bg-background/50"
+                    />
+                    {confirmPassword && password !== confirmPassword && (
+                      <p className="text-sm text-destructive mt-1">
+                        Passwords do not match
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -284,7 +377,9 @@ export default function AuthPage() {
                 (step === "email" 
                   ? !isValidEmail(email)
                   : step === "password"
-                    ? !isValidPassword(password) || password !== confirmPassword
+                    ? isLogin 
+                      ? !password
+                      : !isValidPassword(password) || password !== confirmPassword
                     : otp.some((digit) => !digit))
               }
             >
@@ -295,7 +390,7 @@ export default function AuthPage() {
                   {step === "email" 
                     ? "Continue" 
                     : step === "password" 
-                      ? "Create Account" 
+                      ? isLogin ? "Login" : "Create Account"
                       : "Verify & Continue"}
                   <ArrowRight className="h-4 w-4 ml-1 inline" />
                 </span>
@@ -306,6 +401,17 @@ export default function AuthPage() {
 
         <p className="text-center mt-6 text-sm text-muted-foreground">
           By continuing, you agree to our Terms of Service and Privacy Policy
+        </p>
+
+        <p className="text-center mt-6 text-sm text-muted-foreground">
+          {isLogin ? "Don't have an account?" : "Already have an account?"}
+          <Button
+            variant="link"
+            className="p-0 h-auto text-primary hover:text-primary/90"
+            onClick={toggleAuthMode}
+          >
+            {isLogin ? "Create Account" : "Login"}
+          </Button>
         </p>
       </div>
     </div>

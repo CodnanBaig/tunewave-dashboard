@@ -97,6 +97,36 @@ export default function OnboardingPage() {
     addressDetails: false,
     kycDetails: false,
   })
+  const [isLoading, setIsLoading] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
+
+  // Helper function to convert country name to ID
+  const getCountryId = (country: string): number => {
+    const countryMap: { [key: string]: number } = {
+      "india": 1,
+      "us": 2,
+      "uk": 3,
+      "other": 4
+    }
+    return countryMap[country] || 1
+  }
+
+  // Helper function to convert gender to ID
+  const getGenderId = (gender: string): number => {
+    const genderMap: { [key: string]: number } = {
+      "male": 1,
+      "female": 2,
+      "other": 3,
+      "prefer-not-to-say": 4
+    }
+    return genderMap[gender] || 1
+  }
+
+  // Helper function to format date for API
+  const formatDateForAPI = (date: Date | undefined): string => {
+    if (!date) return ""
+    return date.toISOString().split('T')[0] // Format as YYYY-MM-DD
+  }
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -223,12 +253,109 @@ export default function OnboardingPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (validateStep3()) {
-      // In a real app, this would save the profile data
-      console.log("Saving profile", formData)
-      router.push("/releases")
+      setIsLoading(true)
+      setApiError(null)
+
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+        if (!apiBaseUrl) {
+          throw new Error("API base URL not configured")
+        }
+
+        // Step 1: Complete Profile
+        const profileData = {
+          emailAddress: formData.email,
+          password: "", // This should come from the auth step, but for now we'll leave it empty
+          name: formData.fullName,
+          mobileNumber: "+91-9876543210", // This is hardcoded in the UI, should be dynamic
+          countryId: getCountryId(formData.country),
+          genderId: getGenderId(formData.gender),
+          DOB: formatDateForAPI(formData.dateOfBirth),
+          address: formData.address,
+          city: formData.city,
+          pincode: formData.pincode,
+          state: formData.state,
+          userType: formData.artistType === "solo" ? "Artist" : "Label"
+        }
+
+        console.log("Sending profile data:", profileData)
+
+        const profileResponse = await fetch(`${apiBaseUrl}/tunewave/completeProfile`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          },
+          body: JSON.stringify(profileData),
+        })
+
+        if (!profileResponse.ok) {
+          const errorData = await profileResponse.json().catch(() => ({}))
+          throw new Error(errorData.message || `Profile completion failed: ${profileResponse.status}`)
+        }
+
+        const profileResult = await profileResponse.json()
+        console.log("Profile completion successful:", profileResult)
+
+        // Step 2: KYC Verification
+        const kycData = {
+          accountNumber: formData.accountNumber,
+          IFSC: formData.isIndianNational ? formData.ifscCode : "",
+          accountHolderName: formData.accountHolderName,
+          bankName: formData.bankName,
+          bankAddress: formData.isIndianNational ? "" : formData.bankAddress,
+          swiftOrBicCode: formData.isIndianNational ? "" : formData.swiftCode,
+          isIndian: formData.isIndianNational,
+          aadharCard: formData.isIndianNational && formData.aadhaarFile ? await fileToBase64(formData.aadhaarFile) : "",
+          panCard: formData.isIndianNational && formData.pancardFile ? await fileToBase64(formData.pancardFile) : "",
+          passportOrGovId: !formData.isIndianNational && formData.passportFile ? await fileToBase64(formData.passportFile) : ""
+        }
+
+        console.log("Sending KYC data:", { ...kycData, aadharCard: "base64_data", panCard: "base64_data", passportOrGovId: "base64_data" })
+
+        const kycResponse = await fetch(`${apiBaseUrl}/tunewave/KYCVerification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          },
+          body: JSON.stringify(kycData),
+        })
+
+        if (!kycResponse.ok) {
+          const errorData = await kycResponse.json().catch(() => ({}))
+          throw new Error(errorData.message || `KYC verification failed: ${kycResponse.status}`)
+        }
+
+        const kycResult = await kycResponse.json()
+        console.log("KYC verification successful:", kycResult)
+        
+        // Navigate to releases page on success
+        router.push("/releases")
+      } catch (err) {
+        console.error("Profile/KYC completion error:", err)
+        setApiError(err instanceof Error ? err.message : "Profile completion failed. Please try again.")
+      } finally {
+        setIsLoading(false)
+      }
     }
+  }
+
+  // Helper function to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        const base64String = reader.result as string
+        // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
+        const base64 = base64String.split(',')[1]
+        resolve(base64)
+      }
+      reader.onerror = error => reject(error)
+    })
   }
 
   const handleContinue = () => {
@@ -610,6 +737,12 @@ export default function OnboardingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
+              {apiError && (
+                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <p className="text-sm text-red-400">{apiError}</p>
+                </div>
+              )}
+              
               {formData.isIndianNational === null ? (
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-white">Are you an Indian National?</h3>
@@ -871,15 +1004,24 @@ export default function OnboardingPage() {
                     setStep(2)
                   }
                 }}
+                disabled={isLoading}
                 className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
               >
                 Back
               </Button>
               <Button
-                className="px-8 bg-white text-black hover:bg-gray-100"
+                className="px-8 bg-white text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSaveProfile}
+                disabled={isLoading}
               >
-                Complete Profile
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                    Completing...
+                  </div>
+                ) : (
+                  "Complete Profile"
+                )}
               </Button>
             </CardFooter>
           </Card>
