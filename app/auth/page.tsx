@@ -36,124 +36,98 @@ export default function AuthPage() {
   }
 
   const isValidPassword = (password: string) => {
-    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
-    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/.test(password)
+    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password)
   }
 
-  const handleEmailSubmit = () => {
+  const handleEmailSubmit = async () => {
     if (!isValidEmail(email)) return
 
     setIsLoading(true)
     setError(null)
+    
     if (authMethod === "email-password") {
-      // For email-password, go directly to password step (login flow)
-      setStep("password")
-      setIsLoading(false)
+      // For email-password, validate password and submit both email and password
+      if (!password) {
+        setError("Password is required")
+        setIsLoading(false)
+        return
+      }
+      
+      if (!isLogin && !isValidPassword(password)) {
+        setError("Password must be at least 8 characters with 1 uppercase, 1 lowercase, 1 number, and 1 special character (@$!%*?&)")
+        setIsLoading(false)
+        return
+      }
+      
+      if (!isLogin && password !== confirmPassword) {
+        setError("Passwords do not match")
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+        if (!apiBaseUrl) {
+          throw new Error("API base URL not configured")
+        }
+
+        const endpoint = isLogin ? 'user/loginEmailPass' : 'user/registerEmailPass'
+        const response = await fetch(`${apiBaseUrl}/${endpoint}`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          },
+          body: JSON.stringify({
+            emailAddress: email,
+            password,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || `${isLogin ? 'Login' : 'Registration'} failed: ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log(`${isLogin ? 'Login' : 'Registration'} successful:`, data)
+        
+        if (isLogin) {
+          // Navigate to releases page for login
+          router.push("/releases")
+        } else {
+          // Navigate to onboarding for registration
+          router.push(`/onboarding?email=${encodeURIComponent(email)}`)
+        }
+      } catch (err) {
+        console.error(`${isLogin ? 'Login' : 'Registration'} error:`, err)
+        setError(err instanceof Error ? err.message : `${isLogin ? 'Login' : 'Registration'} failed. Please try again.`)
+      } finally {
+        setIsLoading(false)
+      }
     } else {
-      // Send OTP
+      // Send OTP - simulate API call
       setTimeout(() => {
-        console.log("Sending OTP to", email)
+        console.log("OTP sent to:", email)
         setStep("otp")
         setIsLoading(false)
       }, 1000)
     }
   }
 
-  const handlePasswordSubmit = async () => {
-    if (isLogin) {
-      // Login flow
-      if (!password) return
-      
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
-        if (!apiBaseUrl) {
-          throw new Error("API base URL not configured")
-        }
-
-        const response = await fetch(`${apiBaseUrl}/tunewave/loginEmailPass`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.message || `Login failed: ${response.status}`)
-        }
-
-        const data = await response.json()
-        console.log("Login successful:", data)
-        
-        // Navigate to dashboard or releases page on success
-        router.push("/releases")
-      } catch (err) {
-        console.error("Login error:", err)
-        setError(err instanceof Error ? err.message : "Login failed. Please try again.")
-      } finally {
-        setIsLoading(false)
-      }
-    } else {
-      // Registration flow
-      if (!isValidPassword(password)) return
-      if (password !== confirmPassword) return
-
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
-        if (!apiBaseUrl) {
-          throw new Error("API base URL not configured")
-        }
-
-        const response = await fetch(`${apiBaseUrl}/tunewave/registerEmailPass`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.message || `Registration failed: ${response.status}`)
-        }
-
-        const data = await response.json()
-        console.log("Registration successful:", data)
-        
-        // Navigate to onboarding on success
-        router.push("/onboarding")
-      } catch (err) {
-        console.error("Registration error:", err)
-        setError(err instanceof Error ? err.message : "Registration failed. Please try again.")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-  }
-
-  const handleVerifyOTP = () => {
+  const handleVerifyOTP = async () => {
     if (otp.some((digit) => !digit)) return
 
     setIsLoading(true)
-    // In a real app, this would verify the OTP
+    setError(null)
+
+    // Simulate OTP verification
     setTimeout(() => {
-      console.log("Verifying OTP", otp.join(""))
+      console.log("OTP verification:", otp.join(""))
       router.push("/onboarding")
+      setIsLoading(false)
     }, 1000)
   }
 
@@ -213,6 +187,18 @@ export default function AuthPage() {
     setStep("email")
   }
 
+  const handleResendOTP = async () => {
+    setIsLoading(true)
+    setError(null)
+
+    // Simulate resend OTP
+    setTimeout(() => {
+      console.log("OTP resent to:", email)
+      setOtp(["", "", "", "", "", ""])
+      setIsLoading(false)
+    }, 1000)
+  }
+
   return (
     <div className="grid place-items-center min-h-screen w-full bg-gradient-to-br from-background to-background/80 p-4 overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
@@ -228,7 +214,7 @@ export default function AuthPage() {
               <div className="relative w-48 h-16">
                 <Image
                   src="/logo.png"
-                  alt="SP Music Zone"
+                  alt="Tunewave Media"
                   fill
                   className="object-contain"
                   priority
@@ -238,6 +224,11 @@ export default function AuthPage() {
             <Tabs defaultValue="email-password" className="w-full" onValueChange={(value) => {
               setAuthMethod(value as "email-password" | "email-otp")
               setStep("email")
+              setEmail("")
+              setPassword("")
+              setConfirmPassword("")
+              setOtp(["", "", "", "", "", ""])
+              setError(null)
             }}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="email-password">Email & Password</TabsTrigger>
@@ -247,40 +238,39 @@ export default function AuthPage() {
           </CardHeader>
 
           <CardContent className="space-y-4 px-6">
-            {step === "email" && (
-              <div className="space-y-3">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email Address
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={`pl-4 h-12 rounded-lg border-border/50 bg-background/50 focus-visible:ring-primary/20 ${
-                      focusedInput === 0 ? "border-primary ring ring-primary/20" : ""
-                    }`}
-                    onFocus={() => setFocusedInput(0)}
-                    onBlur={() => setFocusedInput(null)}
-                  />
-                  {email && !isValidEmail(email) && (
-                    <p className="text-sm text-destructive mt-1">
-                      Please enter a valid email address
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {step === "password" && (
-              <div className="space-y-3">
+            {authMethod === "email-password" ? (
+              // Email & Password tab - show both fields on same page
+              <div className="space-y-4">
                 {error && (
                   <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                     <p className="text-sm text-destructive">{error}</p>
                   </div>
                 )}
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium">
+                    Email Address
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={`pl-4 h-12 rounded-lg border-border/50 bg-background/50 focus-visible:ring-primary/20 ${
+                        focusedInput === 0 ? "border-primary ring ring-primary/20" : ""
+                      }`}
+                      onFocus={() => setFocusedInput(0)}
+                      onBlur={() => setFocusedInput(null)}
+                    />
+                    {email && !isValidEmail(email) && (
+                      <p className="text-sm text-destructive mt-1">
+                        Please enter a valid email address
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-sm font-medium">
                     Password
@@ -295,7 +285,7 @@ export default function AuthPage() {
                   />
                   {!isLogin && password && !isValidPassword(password) && (
                     <p className="text-sm text-destructive mt-1">
-                      Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number
+                      Password must be at least 8 characters with 1 uppercase, 1 lowercase, 1 number, and 1 special character (@$!%*?&)
                     </p>
                   )}
                 </div>
@@ -321,10 +311,40 @@ export default function AuthPage() {
                   </div>
                 )}
               </div>
-            )}
-
-            {step === "otp" && (
+            ) : step === "email" ? (
+              // Email OTP tab - email step
               <div className="space-y-3">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email Address
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={`pl-4 h-12 rounded-lg border-border/50 bg-background/50 focus-visible:ring-primary/20 ${
+                      focusedInput === 0 ? "border-primary ring ring-primary/20" : ""
+                    }`}
+                    onFocus={() => setFocusedInput(0)}
+                    onBlur={() => setFocusedInput(null)}
+                  />
+                  {email && !isValidEmail(email) && (
+                    <p className="text-sm text-destructive mt-1">
+                      Please enter a valid email address
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : step === "otp" ? (
+              // Email OTP tab - OTP step
+              <div className="space-y-3">
+                {error && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
                 <Label htmlFor="otp" className="text-sm font-medium">
                   Verification Code
                 </Label>
@@ -353,33 +373,33 @@ export default function AuthPage() {
                   <Button
                     variant="link"
                     className="p-0 h-auto text-primary hover:text-primary/90"
-                    onClick={() => setStep("email")}
+                    onClick={handleResendOTP}
+                    disabled={isLoading}
                   >
-                    Change
+                    Resend Code
                   </Button>
                 </div>
               </div>
-            )}
+            ) : null}
           </CardContent>
 
           <CardFooter className="px-6 pb-6">
             <Button
               className="w-full h-12 bg-gradient-primary hover:opacity-90 transition-opacity text-white rounded-lg flex items-center justify-center gap-2 shadow-lg group"
               onClick={
-                step === "email" 
+                authMethod === "email-password" 
                   ? handleEmailSubmit 
-                  : step === "password" 
-                    ? handlePasswordSubmit 
+                  : step === "email" 
+                    ? handleEmailSubmit 
                     : handleVerifyOTP
               }
               disabled={
                 isLoading || 
-                (step === "email" 
-                  ? !isValidEmail(email)
-                  : step === "password"
-                    ? isLogin 
-                      ? !password
-                      : !isValidPassword(password) || password !== confirmPassword
+                (authMethod === "email-password"
+                  ? !isValidEmail(email) || !password || 
+                    (!isLogin && (!isValidPassword(password) || password !== confirmPassword))
+                  : step === "email" 
+                    ? !isValidEmail(email)
                     : otp.some((digit) => !digit))
               }
             >
@@ -387,10 +407,10 @@ export default function AuthPage() {
                 <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <span className="group-hover:text-black transition-colors">
-                  {step === "email" 
-                    ? "Continue" 
-                    : step === "password" 
-                      ? isLogin ? "Login" : "Create Account"
+                  {authMethod === "email-password"
+                    ? isLogin ? "Login" : "Create Account"
+                    : step === "email" 
+                      ? "Continue" 
                       : "Verify & Continue"}
                   <ArrowRight className="h-4 w-4 ml-1 inline" />
                 </span>

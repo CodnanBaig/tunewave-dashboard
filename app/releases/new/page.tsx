@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useCallback } from "react"
+import React, { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -62,6 +60,7 @@ const initialReleaseState = {
   youtubeContentId: false,
   artwork: null as File | null,
   tracks: [] as Track[],
+  albumId: null as number | null, // Add album ID after creation
 }
 
 // Initial track state
@@ -116,6 +115,162 @@ type Track = {
   crbts: CRBT[] // Add CRBTs to track type
 }
 
+// API response type for album creation
+type AlbumCreationResponse = {
+  id: number
+  albumTitle: string
+  releaseDate: string
+  liveDate: string
+  uploadedOn: string
+  releaseStatusId: number
+  artworkUpload: string
+  ytaf: string
+  labelId: number
+  artworkFile: string
+  clientId: number
+  userId: number
+  metaReleaseDate: string
+}
+
+// API response type for track creation
+type TrackCreationResponse = {
+  id: number
+  songTitle: string
+  isrc: string
+  explicit: string
+  albumId: number
+  languageId: number
+  genreId: number
+  subGenreId: number
+  moodId: number
+  crbtName1?: string
+  crbtName2?: string
+  crbtTiming1?: string
+  crbtTiming2?: string
+}
+
+// Function to upload artwork and get URL - Remove this since we're uploading directly with the album
+const uploadArtwork = async (file: File): Promise<string> => {
+  console.log("📤 Artwork will be uploaded with album creation")
+  // Return empty string since artwork will be uploaded with the album
+  return ""
+}
+
+// API function to create track
+const createTrack = async (trackData: {
+  songTitle: string
+  isrc: string
+  explicit: string
+  albumId: number
+  languageId: number
+  genreId: number
+  subGenreId: number
+  moodId: number
+  crbtName1?: string
+  crbtName2?: string
+  crbtTiming1?: string
+  crbtTiming2?: string
+}): Promise<TrackCreationResponse> => {
+  console.log("🎵 Creating track with data:", trackData)
+  try {
+    const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/user/addrelease1', {
+      method: 'POST',
+      credentials: 'include', // Include cookies for authentication
+      headers: {
+        'Content-Type': 'application/json',
+        'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+      },
+      body: JSON.stringify(trackData),
+    })
+    console.log("📡 Track API Response status:", response.status)
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error("❌ Track API Error:", errorText)
+      throw new Error(`Failed to create track: ${response.status} ${errorText}`)
+    }
+    const result = await response.json()
+    console.log("✅ Track created successfully:", result)
+    return result.data || result
+  } catch (error) {
+    console.error("💥 Error creating track:", error)
+    throw error
+  }
+}
+
+// API function to add artists to release (step 3)
+const addArtistsToRelease = async (
+  releaseId: number,
+  artistList: { artistTypeId: number; artistId: number[] }[]
+) => {
+  try {
+    const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/user/addrelease2', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+      },
+      body: JSON.stringify({ releaseId, artistList }),
+    })
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to add artists: ${response.status} ${errorText}`)
+    }
+    return await response.json()
+  } catch (error) {
+    console.error("\uD83D\uDCA5 Error adding artists:", error)
+    throw error
+  }
+}
+
+// Helper to build artistList payload for /user/addrelease2
+const artistTypeMap = {
+  primary: 1,
+  featuring: 2,
+  lyricist: 3,
+  composer: 4,
+  producer: 5,
+}
+
+const buildArtistListPayload = (track: Track) => [
+  { artistTypeId: artistTypeMap.primary, artistId: track.primaryArtists.map(a => Number(a.id)) },
+  { artistTypeId: artistTypeMap.featuring, artistId: track.featuringArtists.map(a => Number(a.id)) },
+  { artistTypeId: artistTypeMap.lyricist, artistId: track.lyricists.map(a => Number(a.id)) },
+  { artistTypeId: artistTypeMap.composer, artistId: track.composers.map(a => Number(a.id)) },
+  { artistTypeId: artistTypeMap.producer, artistId: track.producers.map(a => Number(a.id)) },
+].filter(item => item.artistId.length > 0)
+
+// API function to add a new artist
+const addArtist = async (artistData: {
+  artistName: string,
+  legalName: string,
+  spotifyURL?: string,
+  youtubeURL?: string,
+  appleURL?: string,
+  instagramURL: string
+}) => {
+  try {
+    const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/user/addArtist', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+      },
+      body: JSON.stringify(artistData),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to add artist: ${response.status} ${errorText}`);
+    }
+    const result = await response.json();
+    return result.data || result;
+  } catch (error) {
+    console.error("\uD83D\uDCA5 Error adding artist:", error);
+    throw error;
+  }
+};
+
 export default function NewReleasePage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -125,8 +280,181 @@ export default function NewReleasePage() {
   const [newArtistRole, setNewArtistRole] = useState<string>("")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showNewArtistForm, setShowNewArtistForm] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Dynamic lists from backend
+  const [languages, setLanguages] = useState<{ id: number; languageName: string }[]>([])
+  const [genres, setGenres] = useState<{ id: number; genreName: string }[]>([])
+  const [subGenres, setSubGenres] = useState<{ id: number; subGenreName: string; genreId: number; genre: { id: number; genreName: string } }[]>([])
+  const [moods, setMoods] = useState<{ id: number; moodName: string }[]>([])
+
+  // State for all artists fetched from backend
+  const [allArtists, setAllArtists] = useState<Artist[]>([]);
+
+  // Use state for userId to ensure client-only access
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Fetch all artists from API
+  const fetchAllArtists = async (uid: string) => {
+    try {
+      if (!uid) {
+        setAllArtists([]);
+        return;
+      }
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/user/getArtist`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          },
+          body: JSON.stringify({ userId: uid }),
+        }
+      );
+      if (!response.ok) throw new Error('Failed to fetch artists');
+      const data = await response.json();
+      setAllArtists(
+        Array.isArray(data.artists)
+          ? data.artists.map((a: any) => ({
+              id: String(a.id),
+              name: a.artistName,
+              legalName: a.legalName,
+              instagram: a.instagramURL,
+              spotify: a.spotifyURL,
+              appleMusic: a.appleURL,
+              youtube: a.youtubeURL,
+              role: '', // role is set when selected
+            }))
+          : []
+      );
+    } catch (e) {
+      setAllArtists([]);
+    }
+  };
+
+  // Set userId from localStorage on client
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUserId(localStorage.getItem('id'));
+    }
+  }, []);
+
+  // Fetch artists when userId is available
+  useEffect(() => {
+    if (userId) {
+      fetchAllArtists(userId);
+      console.log("🔍 All artists fetched for userId:", userId);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    // Helper to fetch and set list
+    const fetchList = async (endpoint: string, property: string, setter: (data: any) => void) => {
+      try {
+        const res = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + endpoint, {
+          credentials: 'include',
+          headers: { 'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '' },
+        })
+        
+        if (!res.ok) {
+          console.error(`Failed to fetch ${endpoint}:`, res.status, res.statusText)
+          return
+        }
+        
+        const data = await res.json()
+        // Log the raw data for debugging
+        console.log(`==== RAW DATA for ${endpoint} ====`, data)
+        // Extract the correct property from the response
+        const listData = Array.isArray(data[property]) ? data[property] : []
+        console.log(`📋 Fetched ${endpoint}:`, listData)
+        setter(listData)
+      } catch (e) {
+        console.error(`Failed to fetch ${endpoint}:`, e)
+        // Set empty array on error to prevent mapping issues
+        setter([])
+      }
+    }
+    
+    fetchList('/user/getlanguage', 'languages', setLanguages)
+    fetchList('/user/getgenre', 'genre', setGenres)
+    fetchList('/user/getsubgenre', 'subGenre', setSubGenres)
+    fetchList('/user/getmood', 'moods', setMoods)
+  }, [])
 
   const minReleaseDate = addDays(new Date(), 2)
+
+  // API function to create album
+  const createAlbum = async (albumData: {
+    albumTitle: string
+    releaseDate: string
+    liveDate: string
+    uploadedOn: string
+    releaseStatusId: number
+    ytaf: string
+    labelId: number
+    clientId: number
+    userId: number
+    metaReleaseDate?: string // Make optional
+    remark?: string
+  }): Promise<AlbumCreationResponse> => {
+    console.log("🚀 Creating album with data:", albumData)
+    
+    try {
+      // Create FormData for multipart upload
+      const formData = new FormData()
+      
+      // Add the artwork file
+      if (release.artwork) {
+        formData.append('artworkFile', release.artwork)
+      }
+      
+      // Add other fields as form data
+      formData.append('albumTitle', albumData.albumTitle)
+      formData.append('releaseDate', albumData.releaseDate)
+      formData.append('liveDate', albumData.liveDate)
+      formData.append('releaseStatusId', albumData.releaseStatusId.toString())
+      formData.append('ytaf', albumData.ytaf)
+      formData.append('labelId', albumData.labelId.toString())
+      // Only append metaReleaseDate if it is a valid date string
+      if (albumData.metaReleaseDate) {
+        formData.append('metaReleaseDate', albumData.metaReleaseDate)
+      }
+      
+      // Add optional fields if they exist
+      if (albumData.remark) {
+        formData.append('remark', albumData.remark)
+      }
+
+      console.log("📤 FormData YTAF value:", albumData.ytaf, "Type:", typeof albumData.ytaf, "Length:", albumData.ytaf.length)
+
+      const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/user/addAlbum', {
+        method: 'POST',
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          // Don't set Content-Type for FormData, let the browser set it with boundary
+        },
+        body: formData,
+      })
+
+      console.log("📡 API Response status:", response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("❌ API Error:", errorText)
+        throw new Error(`Failed to create album: ${response.status} ${errorText}`)
+      }
+
+      const result = await response.json()
+      console.log("✅ Album created successfully:", result)
+      return result.data // Return the data property from the response
+    } catch (error) {
+      console.error("💥 Error creating album:", error)
+      throw error
+    }
+  }
 
   // Validation functions
   const validateReleaseInfo = () => {
@@ -298,19 +626,120 @@ export default function NewReleasePage() {
     }
   }, [release, currentTrack, errors.artistOverlap])
 
-  // Handle next step
-  const nextStep = useCallback(() => {
-    if (isTabCompleted(step)) {
+  // Handle next step with album creation for step 1
+  const nextStep = useCallback(async () => {
+    if (step === 1) {
+      if (validateReleaseInfo()) {
+        setIsSubmitting(true)
+        try {
+          console.log("🎵 Starting album creation process...")
+          
+          // Prepare album data
+          const albumData = {
+            albumTitle: release.title,
+            releaseDate: release.releaseDate ? format(release.releaseDate, 'yyyy-MM-dd') : '',
+            liveDate: release.releaseDate ? format(release.releaseDate, 'yyyy-MM-dd') : '',
+            uploadedOn: format(new Date(), 'yyyy-MM-dd'),
+            releaseStatusId: 1, // Default status - adjust as needed
+            ytaf: release.youtubeContentId ? "YES" : "NO", // Convert boolean to ENUM values
+            labelId: parseInt(release.label) || 1, // Convert label to ID - adjust mapping as needed
+            clientId: 1, // Default client ID - adjust as needed
+            userId: 1, // Default user ID - adjust as needed
+            metaReleaseDate: release.metaReleaseDate ? format(release.metaReleaseDate, 'yyyy-MM-dd') : undefined,
+            remark: undefined // Optional remark field
+          }
+
+          console.log("📋 Prepared album data:", albumData)
+          console.log("🔍 YTAF value:", albumData.ytaf, "Length:", albumData.ytaf.length)
+
+          // Create album via API
+          const albumResponse = await createAlbum(albumData)
+          
+          // Update release state with album ID
+          setRelease(prev => ({
+            ...prev,
+            albumId: albumResponse.id
+          }))
+
+          console.log("🎉 Album created with ID:", albumResponse.id)
+          console.log("📊 Moving to next step...")
+          
+          setStep(2)
+        } catch (error) {
+          console.error("💥 Failed to create album:", error)
+          // You might want to show an error message to the user here
+          setErrors({ submit: error instanceof Error ? error.message : 'Failed to create album' })
+        } finally {
+          setIsSubmitting(false)
+        }
+      } else {
+        console.log("❌ Validation failed for step 1")
+      }
+    } else if (step === 2) {
+      if (validateTrackInfo()) {
+        setIsSubmitting(true)
+        try {
+          console.log("🎵 Starting track creation process...")
+          
+          if (!release.albumId) {
+            throw new Error("Album ID is required to create track")
+          }
+
+          // Prepare track data
+          const trackData = {
+            songTitle: currentTrack.name,
+            isrc: currentTrack.isrc || "",
+            explicit: currentTrack.explicit ? "YES" : "NO",
+            albumId: release.albumId,
+            languageId: Array.isArray(languages) && languages.find(l => l.languageName === currentTrack.language)?.id || 1,
+            genreId: Array.isArray(genres) && genres.find(g => g.genreName === currentTrack.genre)?.id || 1,
+            subGenreId: Array.isArray(subGenres) && subGenres.find(sg => sg.subGenreName === currentTrack.subGenre && sg.genre.genreName === currentTrack.genre)?.id || 1,
+            moodId: Array.isArray(moods) && moods.find(m => m.moodName === currentTrack.mood)?.id || 1,
+            crbtName1: currentTrack.crbts[0]?.name || undefined,
+            crbtName2: currentTrack.crbts[1]?.name || undefined,
+            crbtTiming1: currentTrack.crbts[0]?.timing || undefined,
+            crbtTiming2: currentTrack.crbts[1]?.timing || undefined,
+          }
+
+          console.log("📋 Prepared track data:", trackData)
+
+          // Create track via API
+          const trackResponse = await createTrack(trackData)
+          
+          console.log("🎉 Track created with ID:", trackResponse.id)
+          console.log("📊 Moving to next step...")
+          
+          setStep(3)
+        } catch (error) {
+          console.error("💥 Failed to create track:", error)
+          setErrors({ submit: error instanceof Error ? error.message : 'Failed to create track' })
+        } finally {
+          setIsSubmitting(false)
+        }
+      } else {
+        console.log("❌ Validation failed for step 2")
+      }
+    } else if (step === 3) {
+      if (validateArtistInfo()) {
+        setIsSubmitting(true)
+        try {
+          if (!release.albumId) throw new Error("Album ID is required")
+          const artistList = buildArtistListPayload(currentTrack)
+          await addArtistsToRelease(release.albumId, artistList)
+          setStep(4)
+        } catch (error) {
+          setErrors({ submit: error instanceof Error ? error.message : 'Failed to add artists' })
+        } finally {
+          setIsSubmitting(false)
+        }
+      } else {
+        // validation error
+      }
+    } else if (isTabCompleted(step)) {
       setStep(step + 1)
     } else {
       // Run validation for current step to show errors
       switch (step) {
-        case 1:
-          validateReleaseInfo()
-          break
-        case 2:
-          validateTrackInfo()
-          break
         case 3:
           validateArtistInfo()
           break
@@ -319,7 +748,7 @@ export default function NewReleasePage() {
           break
       }
     }
-  }, [step, isTabCompleted])
+  }, [step, isTabCompleted, release, currentTrack, languages, genres, subGenres, moods])
 
   // Handle previous step
   const prevStep = () => {
@@ -329,7 +758,7 @@ export default function NewReleasePage() {
   // Handle release creation completion
   const handleCreateRelease = () => {
     // In a real app, this would submit the release to an API
-    console.log("Creating release:", {
+    console.log("🎵 Final release data:", {
       ...release,
       tracks: [...release.tracks, currentTrack],
     })
@@ -356,67 +785,83 @@ export default function NewReleasePage() {
   }
 
   // Handle adding a new artist
-  const handleAddNewArtist = () => {
+  const handleAddNewArtist = async () => {
     if (validateNewArtist()) {
-      const artist: Artist = {
-        id: `new-${Date.now()}`,
-        name: newArtist.name!,
-        legalName: newArtist.legalName!,
-        instagram: newArtist.instagram,
-        spotify: newArtist.spotify,
-        appleMusic: newArtist.appleMusic,
-        youtube: newArtist.youtube,
-        role: newArtistRole,
-      }
+      setIsSubmitting(true);
+      try {
+        const apiArtist = await addArtist({
+          artistName: newArtist.name!,
+          legalName: newArtist.legalName!,
+          spotifyURL: newArtist.spotify,
+          youtubeURL: newArtist.youtube,
+          appleURL: newArtist.appleMusic,
+          instagramURL: newArtist.instagram!,
+        });
 
-      // Add artist to the appropriate role array
-      switch (newArtistRole) {
-        case "primary":
-          if (currentTrack.primaryArtists.length < 3) {
+        const artist: Artist = {
+          id: String(apiArtist.id),
+          name: apiArtist.artistName,
+          legalName: apiArtist.legalName,
+          instagram: apiArtist.instagramURL,
+          spotify: apiArtist.spotifyURL,
+          appleMusic: apiArtist.appleURL,
+          youtube: apiArtist.youtubeURL,
+          role: newArtistRole,
+        };
+
+        // Add artist to the appropriate role array
+        switch (newArtistRole) {
+          case "primary":
+            if (currentTrack.primaryArtists.length < 3) {
+              setCurrentTrack((prev) => ({
+                ...prev,
+                primaryArtists: [...prev.primaryArtists, artist],
+              }))
+            }
+            break
+          case "featuring":
+            if (currentTrack.featuringArtists.length < 10) {
+              setCurrentTrack((prev) => ({
+                ...prev,
+                featuringArtists: [...prev.featuringArtists, artist],
+              }))
+            }
+            break
+          case "lyricist":
             setCurrentTrack((prev) => ({
               ...prev,
-              primaryArtists: [...prev.primaryArtists, artist],
+              lyricists: [...prev.lyricists, artist],
             }))
-          }
-          break
-        case "featuring":
-          if (currentTrack.featuringArtists.length < 10) {
+            break
+          case "composer":
             setCurrentTrack((prev) => ({
               ...prev,
-              featuringArtists: [...prev.featuringArtists, artist],
+              composers: [...prev.composers, artist],
             }))
-          }
-          break
-        case "lyricist":
-          setCurrentTrack((prev) => ({
-            ...prev,
-            lyricists: [...prev.lyricists, artist],
-          }))
-          break
-        case "composer":
-          setCurrentTrack((prev) => ({
-            ...prev,
-            composers: [...prev.composers, artist],
-          }))
-          break
-        case "producer":
-          setCurrentTrack((prev) => ({
-            ...prev,
-            producers: [...prev.producers, artist],
-          }))
-          break
-      }
+            break
+          case "producer":
+            setCurrentTrack((prev) => ({
+              ...prev,
+              producers: [...prev.producers, artist],
+            }))
+            break
+        }
 
-      // Reset new artist form
-      setNewArtist({})
-      setNewArtistRole("")
-      setShowNewArtistForm(false)
+        // Reset new artist form
+        setNewArtist({})
+        setNewArtistRole("")
+        setShowNewArtistForm(false)
+      } catch (error) {
+        setErrors({ submit: error instanceof Error ? error.message : 'Failed to add artist' });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   }
 
   // Handle adding an existing artist
   const handleAddExistingArtist = (artistId: string, role: string) => {
-    const artist = existingArtists.find((a) => a.id === artistId)
+    const artist = allArtists.find((a) => a.id === artistId)
 
     if (!artist) return
 
@@ -615,6 +1060,15 @@ export default function NewReleasePage() {
           />
         </div>
       </div>
+
+      {/* Show API error if any */}
+      {errors.submit && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{errors.submit}</AlertDescription>
+        </Alert>
+      )}
 
       <Tabs value={`step-${step}`} className="w-full">
         <TabsList className="grid w-full grid-cols-5 mb-8 p-1.5 h-auto rounded-xl bg-muted/50 backdrop-blur-sm">
@@ -944,11 +1398,21 @@ export default function NewReleasePage() {
             <CardFooter className="flex justify-end pt-6 border-t bg-muted/30">
               <Button
                 onClick={nextStep}
+                disabled={isSubmitting}
                 size="lg"
                 className="gap-2 transition-all hover:gap-3 bg-gradient-to-r from-primary to-primary/80 hover:shadow-md"
               >
-                Next
-                <ArrowRight className="h-4 w-4" />
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Creating Album...
+                  </>
+                ) : (
+                  <>
+                    Next
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
             </CardFooter>
           </Card>
@@ -1003,17 +1467,9 @@ export default function NewReleasePage() {
                       <SelectValue placeholder="Select language" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Hindi">Hindi</SelectItem>
-                      <SelectItem value="English">English</SelectItem>
-                      <SelectItem value="Tamil">Tamil</SelectItem>
-                      <SelectItem value="Telugu">Telugu</SelectItem>
-                      <SelectItem value="Punjabi">Punjabi</SelectItem>
-                      <SelectItem value="Bengali">Bengali</SelectItem>
-                      <SelectItem value="Marathi">Marathi</SelectItem>
-                      <SelectItem value="Gujarati">Gujarati</SelectItem>
-                      <SelectItem value="Kannada">Kannada</SelectItem>
-                      <SelectItem value="Malayalam">Malayalam</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      {Array.isArray(languages) && languages.map(lang => (
+                        <SelectItem key={lang.id} value={lang.languageName}>{lang.languageName}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {errors.language && <p className="text-xs text-red-500 font-medium">{errors.language}</p>}
@@ -1025,7 +1481,7 @@ export default function NewReleasePage() {
                   </Label>
                   <Select
                     value={currentTrack.genre}
-                    onValueChange={(value) => setCurrentTrack({ ...currentTrack, genre: value })}
+                    onValueChange={(value) => setCurrentTrack({ ...currentTrack, genre: value, subGenre: "" })}
                   >
                     <SelectTrigger
                       id="genre"
@@ -1037,19 +1493,9 @@ export default function NewReleasePage() {
                       <SelectValue placeholder="Select genre" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Pop">Pop</SelectItem>
-                      <SelectItem value="Rock">Rock</SelectItem>
-                      <SelectItem value="Hip-Hop">Hip-Hop</SelectItem>
-                      <SelectItem value="R&B">R&B</SelectItem>
-                      <SelectItem value="Electronic">Electronic</SelectItem>
-                      <SelectItem value="Classical">Classical</SelectItem>
-                      <SelectItem value="Jazz">Jazz</SelectItem>
-                      <SelectItem value="Folk">Folk</SelectItem>
-                      <SelectItem value="Country">Country</SelectItem>
-                      <SelectItem value="Acoustic">Acoustic</SelectItem>
-                      <SelectItem value="Bollywood">Bollywood</SelectItem>
-                      <SelectItem value="Devotional">Devotional</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      {Array.isArray(genres) && genres.map(genre => (
+                        <SelectItem key={genre.id} value={genre.genreName}>{genre.genreName}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {errors.genre && <p className="text-xs text-red-500 font-medium">{errors.genre}</p>}
@@ -1068,23 +1514,21 @@ export default function NewReleasePage() {
                     <SelectTrigger
                       id="subGenre"
                       className="h-11 text-base transition-all focus-visible:ring-primary/20"
+                      disabled={!currentTrack.genre}
                     >
-                      <SelectValue placeholder="Select sub-genre" />
+                      <SelectValue placeholder={currentTrack.genre ? "Select sub-genre" : "Select genre first"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Acoustic">Acoustic</SelectItem>
-                      <SelectItem value="Trap">Trap</SelectItem>
-                      <SelectItem value="Indie">Indie</SelectItem>
-                      <SelectItem value="Folk">Folk</SelectItem>
-                      <SelectItem value="Alternative">Alternative</SelectItem>
-                      <SelectItem value="EDM">EDM</SelectItem>
-                      <SelectItem value="House">House</SelectItem>
-                      <SelectItem value="Techno">Techno</SelectItem>
-                      <SelectItem value="Ambient">Ambient</SelectItem>
-                      <SelectItem value="Lo-Fi">Lo-Fi</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      {Array.isArray(subGenres) && subGenres
+                        .filter(sg => !currentTrack.genre || sg.genre.genreName === currentTrack.genre)
+                        .map(subGenre => (
+                          <SelectItem key={subGenre.id} value={subGenre.subGenreName}>{subGenre.subGenreName}</SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
+                  {!currentTrack.genre && (
+                    <p className="text-xs text-muted-foreground">Please select a genre first</p>
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -1099,17 +1543,9 @@ export default function NewReleasePage() {
                       <SelectValue placeholder="Select mood" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Happy">Happy</SelectItem>
-                      <SelectItem value="Sad">Sad</SelectItem>
-                      <SelectItem value="Romantic">Romantic</SelectItem>
-                      <SelectItem value="Chill">Chill</SelectItem>
-                      <SelectItem value="Energetic">Energetic</SelectItem>
-                      <SelectItem value="Relaxed">Relaxed</SelectItem>
-                      <SelectItem value="Angry">Angry</SelectItem>
-                      <SelectItem value="Nostalgic">Nostalgic</SelectItem>
-                      <SelectItem value="Hopeful">Hopeful</SelectItem>
-                      <SelectItem value="Melancholic">Melancholic</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      {Array.isArray(moods) && moods.map(mood => (
+                        <SelectItem key={mood.id} value={mood.moodName}>{mood.moodName}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1341,7 +1777,7 @@ export default function NewReleasePage() {
                               + Add New Artist
                             </SelectItem>
                             <Separator className="my-2" />
-                            {existingArtists.map((artist) => (
+                            {allArtists.map((artist) => (
                               <SelectItem key={artist.id} value={artist.id}>
                                 {artist.name}
                               </SelectItem>
@@ -1421,7 +1857,7 @@ export default function NewReleasePage() {
                               + Add New Artist
                             </SelectItem>
                             <Separator className="my-2" />
-                            {existingArtists.map((artist) => (
+                            {allArtists.map((artist) => (
                               <SelectItem key={artist.id} value={artist.id}>
                                 {artist.name}
                               </SelectItem>
@@ -1498,7 +1934,7 @@ export default function NewReleasePage() {
                               + Add New Lyricist
                             </SelectItem>
                             <Separator className="my-2" />
-                            {existingArtists.map((artist) => (
+                            {allArtists.map((artist) => (
                               <SelectItem key={artist.id} value={artist.id}>
                                 {artist.name}
                               </SelectItem>
@@ -1573,7 +2009,7 @@ export default function NewReleasePage() {
                               + Add New Composer
                             </SelectItem>
                             <Separator className="my-2" />
-                            {existingArtists.map((artist) => (
+                            {allArtists.map((artist) => (
                               <SelectItem key={artist.id} value={artist.id}>
                                 {artist.name}
                               </SelectItem>
@@ -1651,7 +2087,7 @@ export default function NewReleasePage() {
                               + Add New Producer
                             </SelectItem>
                             <Separator className="my-2" />
-                            {existingArtists.map((artist) => (
+                            {allArtists.map((artist) => (
                               <SelectItem key={artist.id} value={artist.id}>
                                 {artist.name}
                               </SelectItem>

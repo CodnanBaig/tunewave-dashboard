@@ -78,10 +78,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container max-w-7xl py-8">
-      <div className="flex flex-col md:flex-row gap-8">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
         {/* Left column - Profile card */}
-        <div className="md:w-1/3">
+        <div className="lg:w-1/3">
           <Card className="border shadow-sm overflow-hidden bg-card/50 backdrop-blur-sm">
             <div className="relative h-32 bg-gradient-to-r from-primary/20 to-primary/40">
               <Button
@@ -93,22 +93,22 @@ export default function ProfilePage() {
                 <Edit className="h-4 w-4" />
               </Button>
             </div>
-            <div className="relative px-6">
-              <Avatar className="h-24 w-24 absolute -top-12 ring-4 ring-background">
+            <div className="relative px-4 sm:px-6">
+              <Avatar className="h-20 w-20 sm:h-24 sm:w-24 absolute -top-10 sm:-top-12 ring-4 ring-background">
                 <AvatarImage src={profileData.profileImage || "/placeholder.svg"} alt={profileData.name} />
                 <AvatarFallback>{profileData.name.charAt(0)}</AvatarFallback>
               </Avatar>
             </div>
-            <CardContent className="pt-16 pb-6">
-              <h2 className="text-2xl font-bold">{profileData.name}</h2>
-              <p className="text-muted-foreground">@{profileData.username}</p>
+            <CardContent className="pt-12 sm:pt-16 pb-6">
+              <h2 className="text-xl sm:text-2xl font-bold">{profileData.name}</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">@{profileData.username}</p>
 
               <div className="flex flex-wrap gap-1 mt-2">
                 {profileData.genres.map((genre) => (
                   <Badge
                     key={genre}
                     variant="secondary"
-                    className="bg-primary/10 hover:bg-primary/20 transition-colors"
+                    className="bg-primary/10 hover:bg-primary/20 transition-colors text-xs"
                   >
                     {genre}
                   </Badge>
@@ -117,23 +117,23 @@ export default function ProfilePage() {
 
               <div className="mt-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{profileData.email}</span>
+                  <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="truncate">{profileData.email}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span>{profileData.phone}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span>{profileData.location}</span>
+                  <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="truncate">{profileData.location}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span>Joined {format(new Date(profileData.joinDate), "MMMM yyyy")}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span>{profileData.artistType}</span>
                 </div>
               </div>
@@ -187,19 +187,19 @@ export default function ProfilePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Total Releases</p>
-                    <p className="text-2xl font-bold">{profileData.stats.totalReleases}</p>
+                    <p className="text-xl sm:text-2xl font-bold">{profileData.stats.totalReleases}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Total Tracks</p>
-                    <p className="text-2xl font-bold">{profileData.stats.totalTracks}</p>
+                    <p className="text-xl sm:text-2xl font-bold">{profileData.stats.totalTracks}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Total Streams</p>
-                    <p className="text-2xl font-bold">{profileData.stats.totalStreams.toLocaleString()}</p>
+                    <p className="text-xl sm:text-2xl font-bold">{profileData.stats.totalStreams.toLocaleString()}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Total Revenue</p>
-                    <p className="text-2xl font-bold">{formatAmount(profileData.stats.totalRevenue)}</p>
+                    <p className="text-xl sm:text-2xl font-bold">{formatAmount(profileData.stats.totalRevenue)}</p>
                   </div>
                 </div>
               </CardContent>
@@ -207,184 +207,35 @@ export default function ProfilePage() {
           </Card>
         </div>
 
-        {/* Right column - Tabs */}
-        <div className="md:w-2/3">
+        {/* Right column - Tabs content */}
+        <div className="lg:flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="bank-details">Bank Details</TabsTrigger>
-              <TabsTrigger value="edit-profile">Edit Profile</TabsTrigger>
+              <TabsTrigger value="edit">Edit Profile</TabsTrigger>
+              <TabsTrigger value="banking">Banking</TabsTrigger>
+              <TabsTrigger value="social">Social</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="space-y-6">
+            <TabsContent value="overview" className="mt-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-xl">About</CardTitle>
+                  <CardTitle>About</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p>{profileData.bio}</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">Recent Activity</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <Music className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">New Release: "Summer Vibes"</p>
-                      <p className="text-sm text-muted-foreground">
-                        Released on {format(new Date("2023-06-15"), "MMMM d, yyyy")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <CheckCircle2 className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Release Verified: "Midnight Dreams"</p>
-                      <p className="text-sm text-muted-foreground">
-                        Verified on {format(new Date("2023-08-25"), "MMMM d, yyyy")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <DollarSign className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Royalty Payment Received</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatAmount(350)} received on {format(new Date("2023-09-01"), "MMMM d, yyyy")}
-                      </p>
-                    </div>
-                  </div>
+                  <p className="text-muted-foreground">{profileData.bio}</p>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="bank-details" className="space-y-6">
+            <TabsContent value="edit" className="mt-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-xl">Bank Details</CardTitle>
-                  <CardDescription>Add your Indian bank account details for receiving payments</CardDescription>
+                  <CardTitle>Edit Profile</CardTitle>
+                  <CardDescription>Update your profile information</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="accountHolderName">Account Holder Name</Label>
-                      <Input
-                        id="accountHolderName"
-                        value={profileData.bankDetails.accountHolderName}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            bankDetails: { ...profileData.bankDetails, accountHolderName: e.target.value },
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="bankName">Bank Name</Label>
-                      <Input
-                        id="bankName"
-                        value={profileData.bankDetails.bankName}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            bankDetails: { ...profileData.bankDetails, bankName: e.target.value },
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="accountNumber">Account Number</Label>
-                      <Input
-                        id="accountNumber"
-                        value={profileData.bankDetails.accountNumber}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            bankDetails: { ...profileData.bankDetails, accountNumber: e.target.value },
-                          })
-                        }
-                        maxLength={18}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="ifscCode">IFSC Code</Label>
-                      <Input
-                        id="ifscCode"
-                        value={profileData.bankDetails.ifscCode}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            bankDetails: { ...profileData.bankDetails, ifscCode: e.target.value.toUpperCase() },
-                          })
-                        }
-                        maxLength={11}
-                        placeholder="e.g., SBIN0001234"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="accountType">Account Type</Label>
-                      <select
-                        id="accountType"
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        value={profileData.bankDetails.accountType}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            bankDetails: { ...profileData.bankDetails, accountType: e.target.value },
-                          })
-                        }
-                      >
-                        <option value="Savings">Savings Account</option>
-                        <option value="Current">Current Account</option>
-                      </select>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <p className="text-sm text-muted-foreground">
-                    Note: Your bank details are encrypted and stored securely. We use these details only for processing your payments.
-                  </p>
-                </CardFooter>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="edit-profile" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">Personal Information</CardTitle>
-                  <CardDescription>Update your personal details</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-col items-center mb-4">
-                    <div className="relative mb-4">
-                      <Avatar className="h-24 w-24">
-                        <AvatarImage src={profileData.profileImage || "/placeholder.svg"} alt={profileData.name} />
-                        <AvatarFallback>{profileData.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="absolute bottom-0 right-0 rounded-full h-8 w-8 bg-background shadow-sm"
-                      >
-                        <Upload className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Upload a new profile picture</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
                       <Input
@@ -401,143 +252,172 @@ export default function ProfilePage() {
                         onChange={(e) => setProfileData({ ...profileData, username: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={profileData.email}
-                        onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        value={profileData.phone}
-                        onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="location">Location</Label>
-                      <Input
-                        id="location"
-                        value={profileData.location}
-                        onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
-                      />
-
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="artistType">Artist Type</Label>
-                      <Input
-                        id="artistType"
-                        value={profileData.artistType}
-                        onChange={(e) => setProfileData({ ...profileData, artistType: e.target.value })}
-                      />
-                    </div>
                   </div>
-
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={profileData.email}
+                      onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      value={profileData.phone}
+                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Location</Label>
+                    <Input
+                      id="location"
+                      value={profileData.location}
+                      onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="bio">Bio</Label>
                     <Textarea
                       id="bio"
-                      rows={4}
                       value={profileData.bio}
                       onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
+                      rows={4}
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button onClick={handleSaveProfile} className="w-full sm:w-auto">
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="banking" className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Banking Information</CardTitle>
+                  <CardDescription>Manage your payment details</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="accountHolder">Account Holder Name</Label>
+                      <Input
+                        id="accountHolder"
+                        value={profileData.bankDetails.accountHolderName}
+                        readOnly
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bankName">Bank Name</Label>
+                      <Input
+                        id="bankName"
+                        value={profileData.bankDetails.bankName}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="accountNumber">Account Number</Label>
+                      <Input
+                        id="accountNumber"
+                        value={profileData.bankDetails.accountNumber}
+                        readOnly
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ifscCode">IFSC Code</Label>
+                      <Input
+                        id="ifscCode"
+                        value={profileData.bankDetails.ifscCode}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="accountType">Account Type</Label>
+                    <Input
+                      id="accountType"
+                      value={profileData.bankDetails.accountType}
+                      readOnly
                     />
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
 
+            <TabsContent value="social" className="mt-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-xl">Social Media Links</CardTitle>
+                  <CardTitle>Social Media Links</CardTitle>
                   <CardDescription>Connect your social media accounts</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="instagram" className="flex items-center gap-2">
-                        <Instagram className="h-4 w-4" /> Instagram
-                      </Label>
-                      <Input
-                        id="instagram"
-                        value={profileData.socialLinks.instagram}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            socialLinks: { ...profileData.socialLinks, instagram: e.target.value },
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="youtube" className="flex items-center gap-2">
-                        <Youtube className="h-4 w-4" /> YouTube
-                      </Label>
-                      <Input
-                        id="youtube"
-                        value={profileData.socialLinks.youtube}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            socialLinks: { ...profileData.socialLinks, youtube: e.target.value },
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="twitter" className="flex items-center gap-2">
-                        <Twitter className="h-4 w-4" /> Twitter
-                      </Label>
-                      <Input
-                        id="twitter"
-                        value={profileData.socialLinks.twitter}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            socialLinks: { ...profileData.socialLinks, twitter: e.target.value },
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="facebook" className="flex items-center gap-2">
-                        <Facebook className="h-4 w-4" /> Facebook
-                      </Label>
-                      <Input
-                        id="facebook"
-                        value={profileData.socialLinks.facebook}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            socialLinks: { ...profileData.socialLinks, facebook: e.target.value },
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="website" className="flex items-center gap-2">
-                        <Globe className="h-4 w-4" /> Website
-                      </Label>
-                      <Input
-                        id="website"
-                        value={profileData.socialLinks.website}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            socialLinks: { ...profileData.socialLinks, website: e.target.value },
-                          })
-                        }
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="instagram">Instagram</Label>
+                    <Input
+                      id="instagram"
+                      value={profileData.socialLinks.instagram}
+                      onChange={(e) => setProfileData({
+                        ...profileData,
+                        socialLinks: { ...profileData.socialLinks, instagram: e.target.value }
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="youtube">YouTube</Label>
+                    <Input
+                      id="youtube"
+                      value={profileData.socialLinks.youtube}
+                      onChange={(e) => setProfileData({
+                        ...profileData,
+                        socialLinks: { ...profileData.socialLinks, youtube: e.target.value }
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="twitter">Twitter</Label>
+                    <Input
+                      id="twitter"
+                      value={profileData.socialLinks.twitter}
+                      onChange={(e) => setProfileData({
+                        ...profileData,
+                        socialLinks: { ...profileData.socialLinks, twitter: e.target.value }
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="facebook">Facebook</Label>
+                    <Input
+                      id="facebook"
+                      value={profileData.socialLinks.facebook}
+                      onChange={(e) => setProfileData({
+                        ...profileData,
+                        socialLinks: { ...profileData.socialLinks, facebook: e.target.value }
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="website">Website</Label>
+                    <Input
+                      id="website"
+                      value={profileData.socialLinks.website}
+                      onChange={(e) => setProfileData({
+                        ...profileData,
+                        socialLinks: { ...profileData.socialLinks, website: e.target.value }
+                      })}
+                    />
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button
-                    onClick={handleSaveProfile}
-                    className="w-full bg-gradient-to-r from-primary to-primary/80 hover:shadow-md"
-                  >
+                  <Button onClick={handleSaveProfile} className="w-full sm:w-auto">
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
                     Save Changes
                   </Button>
                 </CardFooter>
@@ -549,4 +429,5 @@ export default function ProfilePage() {
     </div>
   )
 }
+
 

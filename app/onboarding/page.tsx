@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +19,7 @@ import "react-datepicker/dist/react-datepicker.css"
 interface FormData {
   fullName: string
   email: string
+  mobileNumber: string
   country: string
   gender: string
   dateOfBirth: Date | undefined
@@ -43,6 +44,7 @@ interface FormData {
 interface FormErrors {
   fullName?: string
   email?: string
+  mobileNumber?: string
   country?: string
   gender?: string
   dateOfBirth?: string
@@ -71,6 +73,7 @@ export default function OnboardingPage() {
   const [formData, setFormData] = useState<FormData>({
     fullName: "",
     email: "",
+    mobileNumber: "",
     country: "",
     gender: "",
     dateOfBirth: undefined,
@@ -98,35 +101,17 @@ export default function OnboardingPage() {
     kycDetails: false,
   })
   const [isLoading, setIsLoading] = useState(false)
-  const [apiError, setApiError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  // Helper function to convert country name to ID
-  const getCountryId = (country: string): number => {
-    const countryMap: { [key: string]: number } = {
-      "india": 1,
-      "us": 2,
-      "uk": 3,
-      "other": 4
+  // Get email from URL on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const emailFromUrl = urlParams.get('email')
+    
+    if (emailFromUrl) {
+      setFormData(prev => ({ ...prev, email: emailFromUrl }))
     }
-    return countryMap[country] || 1
-  }
-
-  // Helper function to convert gender to ID
-  const getGenderId = (gender: string): number => {
-    const genderMap: { [key: string]: number } = {
-      "male": 1,
-      "female": 2,
-      "other": 3,
-      "prefer-not-to-say": 4
-    }
-    return genderMap[gender] || 1
-  }
-
-  // Helper function to format date for API
-  const formatDateForAPI = (date: Date | undefined): string => {
-    if (!date) return ""
-    return date.toISOString().split('T')[0] // Format as YYYY-MM-DD
-  }
+  }, [])
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -143,6 +128,12 @@ export default function OnboardingPage() {
       newErrors.email = "Email is required"
     } else if (!validateEmail(formData.email)) {
       newErrors.email = "Please enter a valid email"
+    }
+    
+    if (!formData.mobileNumber.trim()) {
+      newErrors.mobileNumber = "Mobile number is required"
+    } else if (!/^[\+]?[1-9][\d]{0,15}$/.test(formData.mobileNumber.replace(/[\s\-\(\)]/g, ''))) {
+      newErrors.mobileNumber = "Please enter a valid mobile number"
     }
     
     if (!formData.country) {
@@ -253,26 +244,65 @@ export default function OnboardingPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSaveProfile = async () => {
-    if (validateStep3()) {
+  const handleContinue = async () => {
+    if (step === 1 && validateStep1()) {
       setIsLoading(true)
-      setApiError(null)
-
+      
       try {
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
         if (!apiBaseUrl) {
           throw new Error("API base URL not configured")
         }
 
-        // Step 1: Complete Profile
-        const profileData = {
+        // Step 1: Update user with personal information
+        const personalData = {
           emailAddress: formData.email,
-          password: "", // This should come from the auth step, but for now we'll leave it empty
           name: formData.fullName,
-          mobileNumber: "+91-9876543210", // This is hardcoded in the UI, should be dynamic
+          mobileNumber: formData.mobileNumber,
           countryId: getCountryId(formData.country),
           genderId: getGenderId(formData.gender),
-          DOB: formatDateForAPI(formData.dateOfBirth),
+          DOB: formatDateForAPI(formData.dateOfBirth)
+        }
+
+        console.log("Sending personal data:", personalData)
+
+        const response = await fetch(`${apiBaseUrl}/user/updateUser`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          },
+          body: JSON.stringify(personalData),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || `Failed to update personal information: ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log("Personal info update successful:", data)
+        
+        setFormComplete({ ...formComplete, personalInfo: true })
+        setStep(2)
+      } catch (err) {
+        console.error("Personal info update error:", err)
+        setError(err instanceof Error ? err.message : "Failed to update personal information. Please try again.")
+      } finally {
+        setIsLoading(false)
+      }
+    } else if (step === 2 && validateStep2()) {
+      setIsLoading(true)
+      
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+        if (!apiBaseUrl) {
+          throw new Error("API base URL not configured")
+        }
+
+        // Step 2: Update user with address details
+        const addressData = {
           address: formData.address,
           city: formData.city,
           pincode: formData.pincode,
@@ -280,67 +310,151 @@ export default function OnboardingPage() {
           userType: formData.artistType === "solo" ? "Artist" : "Label"
         }
 
-        console.log("Sending profile data:", profileData)
+        console.log("Sending address data:", addressData)
 
-        const profileResponse = await fetch(`${apiBaseUrl}/tunewave/completeProfile`, {
-          method: 'POST',
+        const response = await fetch(`${apiBaseUrl}/user/updateUser`, {
+          method: 'PUT',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
             'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
           },
-          body: JSON.stringify(profileData),
+          body: JSON.stringify(addressData),
         })
 
-        if (!profileResponse.ok) {
-          const errorData = await profileResponse.json().catch(() => ({}))
-          throw new Error(errorData.message || `Profile completion failed: ${profileResponse.status}`)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || `Failed to update address information: ${response.status}`)
         }
 
-        const profileResult = await profileResponse.json()
-        console.log("Profile completion successful:", profileResult)
-
-        // Step 2: KYC Verification
-        const kycData = {
-          accountNumber: formData.accountNumber,
-          IFSC: formData.isIndianNational ? formData.ifscCode : "",
-          accountHolderName: formData.accountHolderName,
-          bankName: formData.bankName,
-          bankAddress: formData.isIndianNational ? "" : formData.bankAddress,
-          swiftOrBicCode: formData.isIndianNational ? "" : formData.swiftCode,
-          isIndian: formData.isIndianNational,
-          aadharCard: formData.isIndianNational && formData.aadhaarFile ? await fileToBase64(formData.aadhaarFile) : "",
-          panCard: formData.isIndianNational && formData.pancardFile ? await fileToBase64(formData.pancardFile) : "",
-          passportOrGovId: !formData.isIndianNational && formData.passportFile ? await fileToBase64(formData.passportFile) : ""
-        }
-
-        console.log("Sending KYC data:", { ...kycData, aadharCard: "base64_data", panCard: "base64_data", passportOrGovId: "base64_data" })
-
-        const kycResponse = await fetch(`${apiBaseUrl}/tunewave/KYCVerification`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
-          },
-          body: JSON.stringify(kycData),
-        })
-
-        if (!kycResponse.ok) {
-          const errorData = await kycResponse.json().catch(() => ({}))
-          throw new Error(errorData.message || `KYC verification failed: ${kycResponse.status}`)
-        }
-
-        const kycResult = await kycResponse.json()
-        console.log("KYC verification successful:", kycResult)
+        const data = await response.json()
+        console.log("Address update successful:", data)
         
-        // Navigate to releases page on success
-        router.push("/releases")
+        setFormComplete({ ...formComplete, addressDetails: true })
+        setStep(3)
       } catch (err) {
-        console.error("Profile/KYC completion error:", err)
-        setApiError(err instanceof Error ? err.message : "Profile completion failed. Please try again.")
+        console.error("Address update error:", err)
+        setError(err instanceof Error ? err.message : "Failed to update address information. Please try again.")
       } finally {
         setIsLoading(false)
       }
+    } else if (step === 3 && validateStep3()) {
+      setIsLoading(true)
+      
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+        if (!apiBaseUrl) {
+          throw new Error("API base URL not configured")
+        }
+
+        // Step 3: KYC Verification using FormData
+        const formDataToSend = new FormData()
+        
+        // Add common fields
+        formDataToSend.append('accountNumber', formData.accountNumber)
+        formDataToSend.append('accountHolderName', formData.accountHolderName)
+        formDataToSend.append('bankName', formData.bankName)
+        formDataToSend.append('isIndian', formData.isIndianNational!.toString())
+
+        // Add conditional fields based on nationality
+        if (formData.isIndianNational) {
+          // Indian national fields
+          if (formData.ifscCode) formDataToSend.append('IFSC', formData.ifscCode)
+          if (formData.aadhaarFile) formDataToSend.append('aadharCard', formData.aadhaarFile)
+          if (formData.pancardFile) formDataToSend.append('panCard', formData.pancardFile)
+          // Add required fields for Indian nationals with "Not Applicable"
+          formDataToSend.append('bankAddress', 'Not Applicable')
+          formDataToSend.append('swiftOrBicCode', 'Not Applicable')
+        } else {
+          // International fields
+          formDataToSend.append('swiftOrBicCode', formData.swiftCode || 'Not Applicable')
+          formDataToSend.append('bankAddress', formData.bankAddress || 'Not Applicable')
+          if (formData.passportFile) formDataToSend.append('passportOrGovId', formData.passportFile)
+        }
+
+        console.log("Sending KYC data via FormData")
+
+        const response = await fetch(`${apiBaseUrl}/user/KYCVerification`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+            // Note: Don't set Content-Type header - let browser set it with boundary for FormData
+          },
+          body: formDataToSend,
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || `Failed to complete KYC verification: ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log("KYC verification successful:", data)
+        
+        // Navigate to releases page on success
+        router.push("/releases")
+        setIsLoading(false)
+      } catch (err) {
+        console.error("KYC verification error:", err)
+        setError(err instanceof Error ? err.message : "Failed to complete KYC verification. Please try again.")
+      }
     }
+  }
+
+  // Helper function to handle input changes and clear errors
+  const handleInputChange = (field: keyof FormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    // Clear field error when user starts typing
+    if (errors[field as keyof FormErrors]) {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[field as keyof FormErrors]
+        return newErrors
+      })
+    }
+    // Clear API error when user makes changes
+    if (error) {
+      setError(null)
+    }
+  }
+
+  const steps = [
+    { id: 1, name: "Personal Information" },
+    { id: 2, name: "Address Details" },
+    { id: 3, name: "KYC Verification" },
+  ]
+
+  const handleFileChange = (field: keyof FormData, file: File | null) => {
+    setFormData({ ...formData, [field]: file })
+  }
+
+  // Helper function to convert country name to ID
+  const getCountryId = (country: string): number => {
+    const countryMap: { [key: string]: number } = {
+      "india": 1,
+      "us": 2,
+      "uk": 3,
+      "other": 4
+    }
+    return countryMap[country] || 1
+  }
+
+  // Helper function to convert gender to ID
+  const getGenderId = (gender: string): number => {
+    const genderMap: { [key: string]: number } = {
+      "male": 1,
+      "female": 2,
+      "other": 3,
+      "prefer-not-to-say": 4
+    }
+    return genderMap[gender] || 1
+  }
+
+  // Helper function to format date for API
+  const formatDateForAPI = (date: Date | undefined): string => {
+    if (!date) return ""
+    return date.toISOString().split('T')[0] // Format as YYYY-MM-DD
   }
 
   // Helper function to convert file to base64
@@ -358,26 +472,6 @@ export default function OnboardingPage() {
     })
   }
 
-  const handleContinue = () => {
-    if (step === 1 && validateStep1()) {
-      setFormComplete({ ...formComplete, personalInfo: true })
-      setStep(2)
-    } else if (step === 2 && validateStep2()) {
-      setFormComplete({ ...formComplete, addressDetails: true })
-      setStep(3)
-    }
-  }
-
-  const steps = [
-    { id: 1, name: "Personal Information" },
-    { id: 2, name: "Address Details" },
-    { id: 3, name: "KYC Verification" },
-  ]
-
-  const handleFileChange = (field: keyof FormData, file: File | null) => {
-    setFormData({ ...formData, [field]: file })
-  }
-
   return (
     <div className="grid place-items-center min-h-screen w-full bg-gradient-to-br from-gray-950 via-gray-900 to-black p-4 overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
@@ -392,7 +486,7 @@ export default function OnboardingPage() {
             <div className="relative w-52 h-16">
               <Image
                 src="/logo.png"
-                alt="SP Music Zone"
+                alt="Tunewave Media"
                 fill
                 className="object-contain"
                 priority
@@ -401,7 +495,7 @@ export default function OnboardingPage() {
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-white">Complete Your Profile</h1>
           <p className="mt-2 text-gray-400">
-            Please provide your information to continue using SP Music Zone
+            Please provide your information to continue using TuneWave
           </p>
         </div>
 
@@ -439,6 +533,12 @@ export default function OnboardingPage() {
               <CardDescription className="text-gray-400">Enter your basic details to complete your profile</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {error && (
+                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <p className="text-sm text-red-400">{error}</p>
+                </div>
+              )}
+              
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="fullName" className="font-medium text-gray-300">
@@ -448,7 +548,7 @@ export default function OnboardingPage() {
                     id="fullName"
                     placeholder="John Doe"
                     value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    onChange={(e) => handleInputChange("fullName", e.target.value)}
                     className={cn(
                       "h-11 border-gray-700 bg-gray-800/50 text-gray-100 placeholder:text-gray-500 focus:border-white focus:ring focus:ring-white/20",
                       errors.fullName && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
@@ -461,7 +561,18 @@ export default function OnboardingPage() {
                   <Label htmlFor="mobileNumber" className="font-medium text-gray-300">
                     Mobile Number
                   </Label>
-                  <Input id="mobileNumber" value="+91-9876543210" disabled className="h-11 bg-gray-800/50 text-gray-400" />
+                  <Input
+                    id="mobileNumber"
+                    type="tel"
+                    placeholder="+91-9876543210"
+                    value={formData.mobileNumber}
+                    onChange={(e) => handleInputChange("mobileNumber", e.target.value)}
+                    className={cn(
+                      "h-11 border-gray-700 bg-gray-800/50 text-gray-100 placeholder:text-gray-500 focus:border-white focus:ring focus:ring-white/20",
+                      errors.mobileNumber && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                    )}
+                  />
+                  {errors.mobileNumber && <p className="text-sm text-red-500 mt-1">{errors.mobileNumber}</p>}
                 </div>
               </div>
 
@@ -474,7 +585,7 @@ export default function OnboardingPage() {
                   type="email"
                   placeholder="john.doe@example.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
                   className={cn(
                     "h-11 border-gray-700 bg-gray-800/50 text-gray-100 placeholder:text-gray-500 focus:border-white focus:ring focus:ring-white/20",
                     errors.email && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
@@ -490,7 +601,7 @@ export default function OnboardingPage() {
                   </Label>
                   <Select
                     value={formData.country}
-                    onValueChange={(value) => setFormData({ ...formData, country: value })}
+                    onValueChange={(value) => handleInputChange("country", value)}
                   >
                     <SelectTrigger 
                       id="country" 
@@ -517,7 +628,7 @@ export default function OnboardingPage() {
                   </Label>
                   <Select
                     value={formData.gender}
-                    onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                    onValueChange={(value) => handleInputChange("gender", value)}
                   >
                     <SelectTrigger 
                       id="gender" 
@@ -545,7 +656,7 @@ export default function OnboardingPage() {
                 </Label>
                 <DatePicker
                   selected={formData.dateOfBirth || null}
-                  onChange={(date: Date | null) => setFormData({ ...formData, dateOfBirth: date || undefined })}
+                  onChange={(date: Date | null) => handleInputChange("dateOfBirth", date || undefined)}
                   dateFormat="dd/MM/yyyy"
                   showYearDropdown
                   showMonthDropdown
@@ -571,10 +682,18 @@ export default function OnboardingPage() {
                 Back
               </Button>
               <Button
-                className="px-8 bg-white text-black hover:bg-gray-100"
+                className="px-8 bg-white text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleContinue}
+                disabled={isLoading}
               >
-                Continue
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </div>
+                ) : (
+                  "Continue"
+                )}
               </Button>
             </CardFooter>
           </Card>
@@ -587,6 +706,12 @@ export default function OnboardingPage() {
               <CardDescription className="text-gray-400">Please provide your address information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {error && (
+                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <p className="text-sm text-red-400">{error}</p>
+                </div>
+              )}
+              
               <div className="space-y-2">
                 <Label htmlFor="address" className="font-medium text-gray-300">
                   Address
@@ -596,7 +721,7 @@ export default function OnboardingPage() {
                   rows={3}
                   placeholder="Enter your full address..."
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onChange={(e) => handleInputChange("address", e.target.value)}
                   className={cn(
                     "w-full rounded-md border border-gray-700 bg-gray-800/50 p-3 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white",
                     errors.address && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
@@ -614,7 +739,7 @@ export default function OnboardingPage() {
                     id="city"
                     placeholder="Enter your city"
                     value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    onChange={(e) => handleInputChange("city", e.target.value)}
                     className={cn(
                       "h-11 border-gray-700 bg-gray-800/50 text-gray-100 placeholder:text-gray-500 focus:border-white focus:ring focus:ring-white/20",
                       errors.city && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
@@ -631,7 +756,7 @@ export default function OnboardingPage() {
                     id="pincode"
                     placeholder="Enter 6-digit pincode"
                     value={formData.pincode}
-                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                    onChange={(e) => handleInputChange("pincode", e.target.value)}
                     className={cn(
                       "h-11 border-gray-700 bg-gray-800/50 text-gray-100 placeholder:text-gray-500 focus:border-white focus:ring focus:ring-white/20",
                       errors.pincode && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
@@ -649,7 +774,7 @@ export default function OnboardingPage() {
                   id="state"
                   placeholder="Enter your state"
                   value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                  onChange={(e) => handleInputChange("state", e.target.value)}
                   className={cn(
                     "h-11 border-gray-700 bg-gray-800/50 text-gray-100 placeholder:text-gray-500 focus:border-white focus:ring focus:ring-white/20",
                     errors.state && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
@@ -664,7 +789,7 @@ export default function OnboardingPage() {
                 </Label>
                 <Select
                   value={formData.artistType}
-                  onValueChange={(value) => setFormData({ ...formData, artistType: value })}
+                  onValueChange={(value) => handleInputChange("artistType", value)}
                 >
                   <SelectTrigger 
                     id="artist-type" 
@@ -682,33 +807,6 @@ export default function OnboardingPage() {
                 </Select>
                 {errors.artistType && <p className="text-sm text-red-500 mt-1">{errors.artistType}</p>}
               </div>
-
-              {/* <div className="space-y-2">
-                <Label htmlFor="experience" className="font-medium text-gray-300">
-                  Music Experience
-                </Label>
-                <Select
-                  value={formData.experience}
-                  onValueChange={(value) => setFormData({ ...formData, experience: value })}
-                >
-                  <SelectTrigger 
-                    id="experience" 
-                    className={cn(
-                      "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
-                      errors.experience && "border-red-500"
-                    )}
-                  >
-                    <SelectValue placeholder="Select experience level" />
-                  </SelectTrigger>
-                  <SelectContent className="border-gray-800">
-                    <SelectItem value="beginner">Beginner (0-2 years)</SelectItem>
-                    <SelectItem value="intermediate">Intermediate (3-5 years)</SelectItem>
-                    <SelectItem value="advanced">Advanced (5-10 years)</SelectItem>
-                    <SelectItem value="professional">Professional (10+ years)</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.experience && <p className="text-sm text-red-500 mt-1">{errors.experience}</p>}
-              </div> */}
             </CardContent>
             <CardFooter className="flex justify-between border-t border-gray-800 bg-gray-900/50 p-6">
               <Button 
@@ -719,10 +817,18 @@ export default function OnboardingPage() {
                 Back
               </Button>
               <Button
-                className="px-8 bg-white text-black hover:bg-gray-100"
+                className="px-8 bg-white text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleContinue}
+                disabled={isLoading}
               >
-                Continue
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </div>
+                ) : (
+                  "Continue"
+                )}
               </Button>
             </CardFooter>
           </Card>
@@ -737,9 +843,9 @@ export default function OnboardingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
-              {apiError && (
+              {error && (
                 <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                  <p className="text-sm text-red-400">{apiError}</p>
+                  <p className="text-sm text-red-400">{error}</p>
                 </div>
               )}
               
@@ -755,7 +861,7 @@ export default function OnboardingPage() {
                           ? "bg-white text-black hover:bg-gray-100"
                           : "border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
                       )}
-                      onClick={() => setFormData({ ...formData, isIndianNational: true })}
+                      onClick={() => handleInputChange("isIndianNational", true)}
                     >
                       Yes
                     </Button>
@@ -767,7 +873,7 @@ export default function OnboardingPage() {
                           ? "bg-white text-black hover:bg-gray-100"
                           : "border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
                       )}
-                      onClick={() => setFormData({ ...formData, isIndianNational: false })}
+                      onClick={() => handleInputChange("isIndianNational", false)}
                     >
                       No
                     </Button>
@@ -825,7 +931,7 @@ export default function OnboardingPage() {
                         <Input
                           id="accountNumber"
                           value={formData.accountNumber}
-                          onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                          onChange={(e) => handleInputChange("accountNumber", e.target.value)}
                           className={cn(
                             "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
                             errors.accountNumber && "border-red-500"
@@ -841,7 +947,7 @@ export default function OnboardingPage() {
                         <Input
                           id="ifscCode"
                           value={formData.ifscCode}
-                          onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value.toUpperCase() })}
+                          onChange={(e) => handleInputChange("ifscCode", e.target.value.toUpperCase())}
                           className={cn(
                             "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
                             errors.ifscCode && "border-red-500"
@@ -857,7 +963,7 @@ export default function OnboardingPage() {
                         <Input
                           id="accountHolderName"
                           value={formData.accountHolderName}
-                          onChange={(e) => setFormData({ ...formData, accountHolderName: e.target.value })}
+                          onChange={(e) => handleInputChange("accountHolderName", e.target.value)}
                           className={cn(
                             "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
                             errors.accountHolderName && "border-red-500"
@@ -873,7 +979,7 @@ export default function OnboardingPage() {
                         <Input
                           id="bankName"
                           value={formData.bankName}
-                          onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                          onChange={(e) => handleInputChange("bankName", e.target.value)}
                           className={cn(
                             "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
                             errors.bankName && "border-red-500"
@@ -916,7 +1022,7 @@ export default function OnboardingPage() {
                         <Input
                           id="accountNumber"
                           value={formData.accountNumber}
-                          onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                          onChange={(e) => handleInputChange("accountNumber", e.target.value)}
                           className={cn(
                             "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
                             errors.accountNumber && "border-red-500"
@@ -932,7 +1038,7 @@ export default function OnboardingPage() {
                         <Input
                           id="swiftCode"
                           value={formData.swiftCode}
-                          onChange={(e) => setFormData({ ...formData, swiftCode: e.target.value.toUpperCase() })}
+                          onChange={(e) => handleInputChange("swiftCode", e.target.value.toUpperCase())}
                           className={cn(
                             "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
                             errors.swiftCode && "border-red-500"
@@ -948,7 +1054,7 @@ export default function OnboardingPage() {
                         <Input
                           id="accountHolderName"
                           value={formData.accountHolderName}
-                          onChange={(e) => setFormData({ ...formData, accountHolderName: e.target.value })}
+                          onChange={(e) => handleInputChange("accountHolderName", e.target.value)}
                           className={cn(
                             "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
                             errors.accountHolderName && "border-red-500"
@@ -964,7 +1070,7 @@ export default function OnboardingPage() {
                         <Input
                           id="bankName"
                           value={formData.bankName}
-                          onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                          onChange={(e) => handleInputChange("bankName", e.target.value)}
                           className={cn(
                             "h-11 border-gray-700 bg-gray-800/50 text-gray-100",
                             errors.bankName && "border-red-500"
@@ -981,7 +1087,7 @@ export default function OnboardingPage() {
                           id="bankAddress"
                           rows={3}
                           value={formData.bankAddress}
-                          onChange={(e) => setFormData({ ...formData, bankAddress: e.target.value })}
+                          onChange={(e) => handleInputChange("bankAddress", e.target.value)}
                           className={cn(
                             "w-full rounded-md border border-gray-700 bg-gray-800/50 p-3 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white",
                             errors.bankAddress && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
@@ -999,7 +1105,7 @@ export default function OnboardingPage() {
                 variant="outline" 
                 onClick={() => {
                   if (formData.isIndianNational !== null) {
-                    setFormData({ ...formData, isIndianNational: null })
+                    handleInputChange("isIndianNational", null)
                   } else {
                     setStep(2)
                   }
@@ -1011,7 +1117,7 @@ export default function OnboardingPage() {
               </Button>
               <Button
                 className="px-8 bg-white text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={handleSaveProfile}
+                onClick={handleContinue}
                 disabled={isLoading}
               >
                 {isLoading ? (

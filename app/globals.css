@@ -79,4 +79,49 @@
   .font-accent {
     font-family: var(--font-accent), Arial, Helvetica, sans-serif;
   }
+
+  /* Responsive improvements */
+  @media (max-width: 768px) {
+    .container {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+
+  /* Ensure proper sidebar behavior on mobile */
+  @media (max-width: 768px) {
+    [data-sidebar="sidebar"] {
+      width: 100vw;
+      max-width: 18rem;
+    }
+  }
+
+  /* Improve touch targets on mobile */
+  @media (max-width: 768px) {
+    button, [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
+  /* Better scrolling on mobile */
+  @media (max-width: 768px) {
+    .overflow-auto {
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  /* Mobile navbar specific styles */
+  @media (max-width: 768px) {
+    /* Ensure dropdown menus work properly on mobile */
+    [data-radix-popper-content-wrapper] {
+      z-index: 60 !important;
+    }
+    
+    /* Improve dropdown menu touch targets */
+    [data-radix-dropdown-menu-item] {
+      min-height: 44px;
+      padding: 0.75rem 1rem;
+    }
+  }
 }

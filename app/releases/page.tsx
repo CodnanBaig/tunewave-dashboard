@@ -89,18 +89,18 @@ export default function ReleasesPage() {
   }
 
   return (
-    <div className="container max-w-[1440px] py-8">
-      <div className="mb-8 space-y-4">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl">
+      <div className="mb-6 sm:mb-8 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
               Manage Releases
             </h1>
-            <p className="text-muted-foreground mt-1">Create, track, and manage your music releases</p>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">Create, track, and manage your music releases</p>
           </div>
           <Button
             size="lg"
-            className="bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 shadow-md transition-all duration-300 hover:shadow-lg"
+            className="bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 shadow-md transition-all duration-300 hover:shadow-lg w-full sm:w-auto"
             asChild
           >
             <Link href="/releases/new" className="gap-2">
@@ -110,8 +110,8 @@ export default function ReleasesPage() {
           </Button>
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-4 flex-wrap sm:flex-nowrap">
-          <div className="relative w-full">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search releases..."
@@ -120,7 +120,7 @@ export default function ReleasesPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center justify-center sm:justify-end gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -165,7 +165,7 @@ export default function ReleasesPage() {
           <TabsList className="relative w-full h-auto flex-nowrap overflow-x-auto py-1 justify-start rounded-none bg-transparent space-x-2">
             <TabsTrigger
               value="all"
-              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative"
+              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative whitespace-nowrap"
             >
               All Releases
               <Badge variant="outline" className="ml-2 bg-primary/10 border-0">
@@ -174,7 +174,7 @@ export default function ReleasesPage() {
             </TabsTrigger>
             <TabsTrigger
               value="draft"
-              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative"
+              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative whitespace-nowrap"
             >
               Draft
               <Badge variant="outline" className="ml-2 bg-primary/10 border-0">
@@ -183,7 +183,7 @@ export default function ReleasesPage() {
             </TabsTrigger>
             <TabsTrigger
               value="pending"
-              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative"
+              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative whitespace-nowrap"
             >
               Pending
               <Badge variant="outline" className="ml-2 bg-primary/10 border-0">
@@ -192,7 +192,7 @@ export default function ReleasesPage() {
             </TabsTrigger>
             <TabsTrigger
               value="under-review"
-              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative"
+              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative whitespace-nowrap"
             >
               Under Review
               <Badge variant="outline" className="ml-2 bg-primary/10 border-0">
@@ -201,7 +201,7 @@ export default function ReleasesPage() {
             </TabsTrigger>
             <TabsTrigger
               value="verified"
-              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative"
+              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative whitespace-nowrap"
             >
               Verified
               <Badge variant="outline" className="ml-2 bg-primary/10 border-0">
@@ -210,7 +210,7 @@ export default function ReleasesPage() {
             </TabsTrigger>
             <TabsTrigger
               value="live"
-              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative"
+              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative whitespace-nowrap"
             >
               Live
               <Badge variant="outline" className="ml-2 bg-primary/10 border-0">
@@ -219,7 +219,7 @@ export default function ReleasesPage() {
             </TabsTrigger>
             <TabsTrigger
               value="takedown"
-              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative"
+              className="h-9 rounded-md data-[state=active]:shadow-sm data-[state=active]:bg-background relative whitespace-nowrap"
             >
               Takedown
               <Badge variant="outline" className="ml-2 bg-primary/10 border-0">
@@ -229,59 +229,30 @@ export default function ReleasesPage() {
           </TabsList>
         </div>
 
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground hidden sm:inline">
-              {filteredReleases.length} {filteredReleases.length === 1 ? "release" : "releases"} found
-            </span>
-          </div>
-          <Select defaultValue="date-desc">
-            <SelectTrigger className="w-[200px] border-muted focus:ring-1 focus:ring-primary">
-              <SelectValue placeholder="Sort By" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="title-asc">Release Title (A-Z)</SelectItem>
-              <SelectItem value="title-desc">Release Title (Z-A)</SelectItem>
-              <SelectItem value="date-desc">Release Date (Newest)</SelectItem>
-              <SelectItem value="date-asc">Release Date (Oldest)</SelectItem>
-              <SelectItem value="tracks-desc">Tracks (Most)</SelectItem>
-              <SelectItem value="tracks-asc">Tracks (Least)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         <TabsContent value={activeTab} className="mt-0">
           {filteredReleases.length === 0 ? (
-            <Card className="border border-dashed bg-muted/30">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <div className="rounded-full bg-primary/10 p-4 mb-4">
-                  <Music className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No releases found</h3>
-                <p className="text-muted-foreground text-center mb-6 max-w-md">
-                  {searchQuery
-                    ? "No releases match your search criteria. Try adjusting your search."
-                    : activeTab === "all"
-                      ? "You haven't created any releases yet. Start by adding a new release."
-                      : `You don't have any releases with "${activeTab}" status.`}
-                </p>
-                <Button asChild className="bg-gradient-to-r from-primary to-purple-500 shadow-md">
-                  <Link href="/releases/new" className="gap-2">
-                    <PlusCircle className="h-4 w-4" />
-                    Add New Release
+            <div className="text-center py-12">
+              <Music className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No releases found</h3>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery ? "Try adjusting your search terms" : "Get started by creating your first release"}
+              </p>
+              {!searchQuery && (
+                <Button asChild>
+                  <Link href="/releases/new">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Create Release
                   </Link>
                 </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div
-              className={cn(
-                "grid gap-6",
-                viewMode === "card"
-                  ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-                  : "grid-cols-1",
               )}
-            >
+            </div>
+          ) : (
+            <div className={cn(
+              "grid gap-4",
+              viewMode === "card" 
+                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
+                : "grid-cols-1"
+            )}>
               {filteredReleases.map((release) => (
                 <ReleaseCard key={release.id} release={release} viewMode={viewMode} />
               ))}

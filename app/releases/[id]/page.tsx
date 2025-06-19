@@ -27,7 +27,7 @@ const mockRelease = {
   id: "1",
   title: "Summer Vibes",
   releaseDate: "2023-06-15",
-  label: "SP Music Zone",
+  label: "Tunewave Media",
   artwork: "/placeholder-ko8hn.png",
   status: "draft",
   tracks: [
