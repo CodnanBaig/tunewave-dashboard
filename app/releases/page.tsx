@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,79 +14,184 @@ import { ReleaseCard } from "@/components/release-card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Skeleton } from "@/components/ui/skeleton"
 
-// Mock data for releases
-const mockReleases = [
-  {
-    id: "1",
-    title: "Summer Vibes",
-    releaseDate: "2023-06-15",
-    artwork: "/placeholder-ko8hn.png",
-    status: "live",
-    tracks: 2,
-  },
-  {
-    id: "2",
-    title: "Midnight Dreams",
-    releaseDate: "2023-08-22",
-    artwork: "/midnight-dreams-album-cover.png",
-    status: "pending",
-    tracks: 1,
-  },
-  {
-    id: "3",
-    title: "Urban Echoes",
-    releaseDate: "2023-10-05",
-    artwork: "/placeholder-szg6c.png",
-    status: "under-review",
-    tracks: 3,
-  },
-  {
-    id: "4",
-    title: "Acoustic Sessions",
-    releaseDate: "2024-01-18",
-    artwork: "/placeholder-1euab.png",
-    status: "draft",
-    tracks: 1,
-  },
-  {
-    id: "5",
-    title: "Electric Pulse",
-    releaseDate: "2024-03-30",
-    artwork: "/placeholder-wipqs.png",
-    status: "verified",
-    tracks: 4,
-  },
-  {
-    id: "6",
-    title: "Retro Classics",
-    releaseDate: "2024-05-10",
-    artwork: "/placeholder-kn2nr.png",
-    status: "takedown",
-    tracks: 2,
-  },
-]
+type Release = {
+  id: string
+  title: string
+  releaseDate: string
+  artwork: string
+  status: "draft" | "pending" | "under-review" | "verified" | "live" | "takedown" | "unknown"
+  tracks: number
+}
+
+const statusMap: Record<string, number[]> = {
+  draft: [1],
+  pending: [19],
+  "under-review": [2],
+  verified: [15],
+  live: [16],
+  takedown: [17, 18],
+}
+
+const statusIdToName: Record<number, Release["status"]> = {}
+for (const [name, ids] of Object.entries(statusMap)) {
+  for (const id of ids) {
+    statusIdToName[id] = name as Release["status"]
+  }
+}
 
 export default function ReleasesPage() {
   const [viewMode, setViewMode] = useState<"list" | "card">("card")
   const [activeTab, setActiveTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [releases, setReleases] = useState<Release[]>([])
+  const [loading, setLoading] = useState(true)
+  const [releaseCounts, setReleaseCounts] = useState({
+    all: 0,
+    draft: 0,
+    pending: 0,
+    "under-review": 0,
+    verified: 0,
+    live: 0,
+    takedown: 0,
+  })
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+      const headers = {
+        "Content-Type": "application/json",
+        "Client-ID": process.env.NEXT_PUBLIC_CLIENT_ID || "",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      }
+
+      const fetchCountForStatus = async (status: string): Promise<[string, number]> => {
+        const params = new URLSearchParams({ limit: "1" })
+
+        if (statusMap[status]) {
+          statusMap[status].forEach((id) => params.append("releaseStatusId", id.toString()))
+        }
+
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/user/getAlbumsByStatus?${params.toString()}`, {
+            method: "GET",
+            credentials: "include",
+            headers,
+          })
+
+          if (!response.ok) {
+            console.error(`Failed to fetch count for ${status}`)
+            return [status, 0]
+          }
+
+          const data = await response.json()
+          return [status, data.total || 0]
+        } catch (error) {
+          console.error(`Error fetching count for ${status}:`, error)
+          return [status, 0]
+        }
+      }
+
+      const statusesToFetch = ["draft", "pending", "under-review", "verified", "live", "takedown"]
+      const countPromises = statusesToFetch.map(fetchCountForStatus)
+      const individualCounts = Object.fromEntries(await Promise.all(countPromises))
+
+      const totalCount = Object.values(individualCounts).reduce((sum, count) => sum + count, 0);
+
+      setReleaseCounts({
+        ...releaseCounts, // Keep initial state structure
+        ...individualCounts,
+        all: totalCount,
+      })
+    }
+
+    fetchCounts()
+  }, [])
+
+  useEffect(() => {
+    const fetchReleases = async () => {
+      setLoading(true)
+      try {
+        const params = new URLSearchParams({
+          page: "1",
+          limit: "100",
+          orderBy: "id",
+          order: "DESC",
+        })
+
+        const statusIdsToFetch = 
+          activeTab === 'all'
+            ? Object.values(statusMap).flat()
+            : statusMap[activeTab]
+
+        if (statusIdsToFetch) {
+          statusIdsToFetch.forEach((id) => params.append("releaseStatusId", id.toString()))
+        }
+        
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/user/getAlbumsByStatus?${params.toString()}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error(`API call failed with status: ${response.status}`)
+        }
+        
+        const data = await response.json()
+        
+        // The API returns the array of albums in the 'data' property
+        const fetchedReleases = (data.data || []).map((album: any) => ({
+          id: album.id.toString(),
+          title: album.albumTitle,
+          releaseDate: album.releaseDate,
+          artwork: album.artworkFileUrl, // Use the full URL from the API
+          status: statusIdToName[album.releaseStatusId] || "unknown",
+          tracks: 1, // Defaulting to 1 as track count is not in the album list response
+        }))
+        
+        setReleases(fetchedReleases)
+      } catch (error) {
+        console.error("Failed to fetch releases:", error)
+        // Handle error state, maybe show a toast notification
+        setReleases([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchReleases()
+  }, [activeTab])
+
 
   // Filter releases based on active tab and search query
-  const filteredReleases = mockReleases
+  const filteredReleases = releases
     .filter((release) => activeTab === "all" || release.status === activeTab)
     .filter((release) => searchQuery === "" || release.title.toLowerCase().includes(searchQuery.toLowerCase()))
 
-  // Count releases by status
-  const releaseCounts = {
-    all: mockReleases.length,
-    draft: mockReleases.filter((r) => r.status === "draft").length,
-    pending: mockReleases.filter((r) => r.status === "pending").length,
-    "under-review": mockReleases.filter((r) => r.status === "under-review").length,
-    verified: mockReleases.filter((r) => r.status === "verified").length,
-    live: mockReleases.filter((r) => r.status === "live").length,
-    takedown: mockReleases.filter((r) => r.status === "takedown").length,
-  }
+  const renderSkeletons = () => (
+    <div className={cn(
+      "grid gap-4",
+      viewMode === "card" 
+        ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
+        : "grid-cols-1"
+    )}>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="flex flex-col space-y-3">
+          <Skeleton className={cn("h-[180px] w-full rounded-xl", viewMode === 'list' && 'h-16 w-16')} />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-[150px]" />
+            <Skeleton className="h-4 w-[100px]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl">
@@ -230,7 +335,9 @@ export default function ReleasesPage() {
         </div>
 
         <TabsContent value={activeTab} className="mt-0">
-          {filteredReleases.length === 0 ? (
+          {loading ? (
+            renderSkeletons()
+          ) : filteredReleases.length === 0 ? (
             <div className="text-center py-12">
               <Music className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No releases found</h3>

@@ -43,7 +43,7 @@ function RootLayoutClient({ children }: { children: React.ReactNode }) {
             </div>
             
             {/* Main Content */}
-            <main className="flex-1 overflow-auto md:ml-0">
+            <main className="flex-1 overflow-auto">
               {/* Add top padding for mobile navbar */}
               <div className="pt-16 md:pt-0 min-h-full">
                 {children}

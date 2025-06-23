@@ -95,6 +95,12 @@ export default function AuthPage() {
         console.log(`${isLogin ? 'Login' : 'Registration'} successful:`, data)
         
         if (isLogin) {
+          // Store user info and token in localStorage
+          if (data.user && data.token) {
+            localStorage.setItem('id', data.user.id);
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('roleId', data.user.roleId);
+          }
           // Navigate to releases page for login
           router.push("/releases")
         } else {

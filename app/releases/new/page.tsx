@@ -42,6 +42,41 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Progress } from "@/components/ui/progress"
 
+// Types
+type Artist = {
+  id: string
+  name: string
+  legalName: string
+  instagram?: string
+  spotify?: string
+  appleMusic?: string
+  youtube?: string
+  role: string
+}
+
+type CRBT = {
+  name: string
+  timing: string
+}
+
+type Track = {
+  id?: number
+  name: string
+  language: string
+  genre: string
+  subGenre: string
+  mood: string
+  explicit: boolean
+  isrc: string
+  primaryArtists: Artist[]
+  featuringArtists: Artist[]
+  lyricists: Artist[]
+  composers: Artist[]
+  producers: Artist[]
+  audioFile: File | null
+  crbts: CRBT[] // Add CRBTs to track type
+}
+
 // Mock data for existing artists
 const existingArtists = [
   { id: "1", name: "John Smith", legalName: "John Smith", role: "primary" },
@@ -64,7 +99,7 @@ const initialReleaseState = {
 }
 
 // Initial track state
-const initialTrackState = {
+const initialTrackState: Track = {
   name: "",
   language: "",
   genre: "",
@@ -79,40 +114,6 @@ const initialTrackState = {
   producers: [] as Artist[],
   audioFile: null as File | null,
   crbts: [] as CRBT[], // Initialize empty CRBTs array
-}
-
-// Types
-type Artist = {
-  id: string
-  name: string
-  legalName: string
-  instagram?: string
-  spotify?: string
-  appleMusic?: string
-  youtube?: string
-  role: string
-}
-
-type CRBT = {
-  name: string
-  timing: string
-}
-
-type Track = {
-  name: string
-  language: string
-  genre: string
-  subGenre: string
-  mood: string
-  explicit: boolean
-  isrc: string
-  primaryArtists: Artist[]
-  featuringArtists: Artist[]
-  lyricists: Artist[]
-  composers: Artist[]
-  producers: Artist[]
-  audioFile: File | null
-  crbts: CRBT[] // Add CRBTs to track type
 }
 
 // API response type for album creation
@@ -173,12 +174,14 @@ const createTrack = async (trackData: {
 }): Promise<TrackCreationResponse> => {
   console.log("🎵 Creating track with data:", trackData)
   try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
     const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/user/addrelease1', {
       method: 'POST',
       credentials: 'include', // Include cookies for authentication
       headers: {
         'Content-Type': 'application/json',
         'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
       },
       body: JSON.stringify(trackData),
     })
@@ -203,6 +206,9 @@ const addArtistsToRelease = async (
   artistList: { artistTypeId: number; artistId: number[] }[]
 ) => {
   try {
+    const payload = { releaseId, artistList };
+    console.log("🚀 Sending payload to /user/addrelease2:", JSON.stringify(payload, null, 2));
+
     const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/user/addrelease2', {
       method: 'POST',
       credentials: 'include',
@@ -210,7 +216,7 @@ const addArtistsToRelease = async (
         'Content-Type': 'application/json',
         'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
       },
-      body: JSON.stringify({ releaseId, artistList }),
+      body: JSON.stringify(payload),
     })
     if (!response.ok) {
       const errorText = await response.text()
@@ -218,7 +224,7 @@ const addArtistsToRelease = async (
     }
     return await response.json()
   } catch (error) {
-    console.error("\uD83D\uDCA5 Error adding artists:", error)
+    console.error("💥 Error adding artists:", error)
     throw error
   }
 }
@@ -250,12 +256,14 @@ const addArtist = async (artistData: {
   instagramURL: string
 }) => {
   try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
     const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/user/addArtist', {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
       },
       body: JSON.stringify(artistData),
     });
@@ -271,11 +279,71 @@ const addArtist = async (artistData: {
   }
 };
 
+// API function to upload artwork for a release
+const uploadArtworkApi = async (releaseId: number, artworkFile: File) => {
+  const formData = new FormData()
+  formData.append("releaseId", releaseId.toString())
+  formData.append("artworkFile", artworkFile)
+
+  try {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + "/user/uploadartwork", {
+      method: "PUT",
+      credentials: "include",
+      headers: {
+        "Client-ID": process.env.NEXT_PUBLIC_CLIENT_ID || "",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to upload artwork: ${response.status} ${errorText}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("💥 Error uploading artwork:", error)
+    throw error
+  }
+}
+
+// API function to upload audio file for a release
+const uploadAudio = async (releaseId: number, audioFile: File) => {
+  const formData = new FormData()
+  formData.append("releaseId", releaseId.toString())
+  formData.append("audioFile", audioFile)
+
+  try {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + "/user/uploadaudio", {
+      method: "PUT",
+      credentials: "include",
+      headers: {
+        "Client-ID": process.env.NEXT_PUBLIC_CLIENT_ID || "",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to upload audio: ${response.status} ${errorText}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("💥 Error uploading audio:", error)
+    throw error
+  }
+}
+
 export default function NewReleasePage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [release, setRelease] = useState(initialReleaseState)
-  const [currentTrack, setCurrentTrack] = useState(initialTrackState)
+  const [currentTrack, setCurrentTrack] = useState<Track>(initialTrackState)
   const [newArtist, setNewArtist] = useState<Partial<Artist>>({})
   const [newArtistRole, setNewArtistRole] = useState<string>("")
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -287,52 +355,13 @@ export default function NewReleasePage() {
   const [genres, setGenres] = useState<{ id: number; genreName: string }[]>([])
   const [subGenres, setSubGenres] = useState<{ id: number; subGenreName: string; genreId: number; genre: { id: number; genreName: string } }[]>([])
   const [moods, setMoods] = useState<{ id: number; moodName: string }[]>([])
+  const [labels, setLabels] = useState<{ id: number; labelName: string }[]>([])
 
   // State for all artists fetched from backend
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
 
   // Use state for userId to ensure client-only access
   const [userId, setUserId] = useState<string | null>(null);
-
-  // Fetch all artists from API
-  const fetchAllArtists = async (uid: string) => {
-    try {
-      if (!uid) {
-        setAllArtists([]);
-        return;
-      }
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/user/getArtist`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
-          },
-          body: JSON.stringify({ userId: uid }),
-        }
-      );
-      if (!response.ok) throw new Error('Failed to fetch artists');
-      const data = await response.json();
-      setAllArtists(
-        Array.isArray(data.artists)
-          ? data.artists.map((a: any) => ({
-              id: String(a.id),
-              name: a.artistName,
-              legalName: a.legalName,
-              instagram: a.instagramURL,
-              spotify: a.spotifyURL,
-              appleMusic: a.appleURL,
-              youtube: a.youtubeURL,
-              role: '', // role is set when selected
-            }))
-          : []
-      );
-    } catch (e) {
-      setAllArtists([]);
-    }
-  };
 
   // Set userId from localStorage on client
   useEffect(() => {
@@ -341,21 +370,15 @@ export default function NewReleasePage() {
     }
   }, []);
 
-  // Fetch artists when userId is available
-  useEffect(() => {
-    if (userId) {
-      fetchAllArtists(userId);
-      console.log("🔍 All artists fetched for userId:", userId);
-    }
-  }, [userId]);
-
   useEffect(() => {
     // Helper to fetch and set list
     const fetchList = async (endpoint: string, property: string, setter: (data: any) => void) => {
       try {
         const res = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + endpoint, {
           credentials: 'include',
-          headers: { 'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '' },
+          headers: { 
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          },
         })
         
         if (!res.ok) {
@@ -376,11 +399,87 @@ export default function NewReleasePage() {
         setter([])
       }
     }
+
+    // Helper to fetch labels and ensure "Tunewave" is always an option
+    const fetchLabels = async () => {
+      try {
+        const res = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/user/getlabel', {
+          credentials: 'include',
+          headers: {
+            'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          },
+        })
+
+        if (!res.ok) {
+          console.error(`Failed to fetch labels:`, res.status, res.statusText)
+          setLabels([{ id: 1, labelName: 'Tunewave' }]); // Default to Tunewave on failure
+          return
+        }
+
+        const data = await res.json()
+        console.log(`==== RAW DATA for /user/getlabel ====`, data)
+        const listData = Array.isArray(data.labels) ? data.labels : []
+
+        const tunewaveExists = listData.some(
+            (label: any) => label.labelName.toLowerCase() === 'tunewave'
+        );
+
+        if (!tunewaveExists) {
+          setLabels([{ id: 1, labelName: 'Tunewave' }, ...listData]);
+        } else {
+          setLabels(listData);
+        }
+      } catch (e) {
+        console.error(`Failed to fetch labels:`, e)
+        setLabels([{ id: 1, labelName: 'Tunewave' }]); // Default to Tunewave on error
+      }
+    }
+
+    // Helper to fetch artists
+    const fetchArtists = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/user/getArtist`,
+          {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+            },
+          }
+        );
+        if (!response.ok) throw new Error('Failed to fetch artists');
+        const data = await response.json();
+        console.log(`==== RAW DATA for /user/getArtist ====`, data)
+        setAllArtists(
+          Array.isArray(data.artists)
+            ? data.artists.map((a: any) => ({
+                id: String(a.id),
+                name: a.artistName,
+                legalName: a.legalName,
+                instagram: a.instagramURL,
+                spotify: a.spotifyURL,
+                appleMusic: a.appleURL,
+                youtube: a.youtubeURL,
+                role: '', // role is set when selected
+              }))
+            : []
+        )
+        console.log(`📋 Fetched /user/getArtist:`, data.artists)
+      } catch (e) {
+        console.error(`Failed to fetch /user/getArtist:`, e)
+        setAllArtists([])
+      }
+    }
     
     fetchList('/user/getlanguage', 'languages', setLanguages)
     fetchList('/user/getgenre', 'genre', setGenres)
     fetchList('/user/getsubgenre', 'subGenre', setSubGenres)
     fetchList('/user/getmood', 'moods', setMoods)
+    fetchLabels()
+    fetchArtists() // Add artists fetch here
+    console.log(userId);
   }, [])
 
   const minReleaseDate = addDays(new Date(), 2)
@@ -429,11 +528,13 @@ export default function NewReleasePage() {
 
       console.log("📤 FormData YTAF value:", albumData.ytaf, "Type:", typeof albumData.ytaf, "Length:", albumData.ytaf.length)
 
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
       const response = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL + '/user/addAlbum', {
         method: 'POST',
         credentials: 'include', // Include cookies for authentication
         headers: {
           'Client-ID': process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
           // Don't set Content-Type for FormData, let the browser set it with boundary
         },
         body: formData,
@@ -644,7 +745,7 @@ export default function NewReleasePage() {
             ytaf: release.youtubeContentId ? "YES" : "NO", // Convert boolean to ENUM values
             labelId: parseInt(release.label) || 1, // Convert label to ID - adjust mapping as needed
             clientId: 1, // Default client ID - adjust as needed
-            userId: 1, // Default user ID - adjust as needed
+            userId: userId ? parseInt(userId) : 0, // Use userId from state
             metaReleaseDate: release.metaReleaseDate ? format(release.metaReleaseDate, 'yyyy-MM-dd') : undefined,
             remark: undefined // Optional remark field
           }
@@ -663,6 +764,7 @@ export default function NewReleasePage() {
 
           console.log("🎉 Album created with ID:", albumResponse.id)
           console.log("📊 Moving to next step...")
+          console.log("🔍 Current release state:", { ...release, albumId: albumResponse.id })
           
           setStep(2)
         } catch (error) {
@@ -684,6 +786,8 @@ export default function NewReleasePage() {
           if (!release.albumId) {
             throw new Error("Album ID is required to create track")
           }
+
+          console.log("🎵 Creating track for album ID:", release.albumId)
 
           // Prepare track data
           const trackData = {
@@ -709,6 +813,11 @@ export default function NewReleasePage() {
           console.log("🎉 Track created with ID:", trackResponse.id)
           console.log("📊 Moving to next step...")
           
+          setCurrentTrack(prev => ({
+            ...prev,
+            id: trackResponse.id
+          }))
+
           setStep(3)
         } catch (error) {
           console.error("💥 Failed to create track:", error)
@@ -723,12 +832,12 @@ export default function NewReleasePage() {
       if (validateArtistInfo()) {
         setIsSubmitting(true)
         try {
-          if (!release.albumId) throw new Error("Album ID is required")
+          if (!currentTrack.id) throw new Error("Track ID is required")
           const artistList = buildArtistListPayload(currentTrack)
-          await addArtistsToRelease(release.albumId, artistList)
+          await addArtistsToRelease(currentTrack.id, artistList)
           setStep(4)
         } catch (error) {
-          setErrors({ submit: error instanceof Error ? error.message : 'Failed to add artists' })
+          setErrors({ submit: error instanceof Error ? error.message : "Failed to add artists" })
         } finally {
           setIsSubmitting(false)
         }
@@ -760,27 +869,46 @@ export default function NewReleasePage() {
     // In a real app, this would submit the release to an API
     console.log("🎵 Final release data:", {
       ...release,
-      tracks: [...release.tracks, currentTrack],
+      tracks: release.tracks,
     })
 
-    // Redirect to the single release view
-    // In a real app, this would use the ID returned from the API
-    router.push("/releases/new-release-id")
+    // Redirect to the single release view using the first track's ID
+    if (release.tracks.length > 0 && release.tracks[0].id) {
+      const trackId = release.tracks[0].id
+      console.log("🚀 Redirecting to release page with track ID:", trackId)
+      router.push(`/releases/${trackId}`)
+    } else {
+      console.error("No track ID found, cannot redirect.")
+      // Optionally, show an error to the user
+      setErrors({ submit: "Could not finalize release, no track ID available." })
+    }
   }
 
   // Handle adding the current track to the release
-  const addTrackToRelease = () => {
+  const addTrackToRelease = async () => {
     if (validateAudioUpload()) {
-      setRelease((prev) => ({
-        ...prev,
-        tracks: [...prev.tracks, currentTrack],
-      }))
+      setIsSubmitting(true)
+      try {
+        if (!currentTrack.id || !currentTrack.audioFile) {
+          throw new Error("Track ID and audio file are required")
+        }
+        await uploadAudio(currentTrack.id, currentTrack.audioFile)
+        setRelease((prev) => ({
+          ...prev,
+          tracks: [...prev.tracks, currentTrack],
+        }))
 
-      // Reset current track for potential additional tracks
-      setCurrentTrack(initialTrackState)
+        // Reset current track for potential additional tracks
+        setCurrentTrack(initialTrackState)
 
-      // Go back to step 1 to add another track or finalize
-      setStep(5)
+        // Go to step 5 to review
+        setStep(5)
+      } catch (error) {
+        console.error("💥 Failed to upload audio:", error)
+        setErrors({ submit: error instanceof Error ? error.message : 'Failed to upload audio' })
+      } finally {
+        setIsSubmitting(false)
+      }
     }
   }
 
@@ -808,6 +936,9 @@ export default function NewReleasePage() {
           youtube: apiArtist.youtubeURL,
           role: newArtistRole,
         };
+
+        // Add the new artist to the allArtists list
+        setAllArtists(prev => [...prev, artist]);
 
         // Add artist to the appropriate role array
         switch (newArtistRole) {
@@ -1026,6 +1157,14 @@ export default function NewReleasePage() {
 
     return progress
   }
+
+  // Refetch artists when step 3 is active to ensure the list is fresh
+  useEffect(() => {
+    console.log(`Artist fetch check: step=${step}, userId=${userId}`);
+    if (step === 3 && userId) {
+      console.log("Step 3 reached, artists already fetched in main useEffect");
+    }
+  }, [step, userId]);
 
   return (
     <div className="container max-w-[90rem] py-8">
@@ -1317,9 +1456,9 @@ export default function NewReleasePage() {
                     <SelectValue placeholder="Select label" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="label1">Label 1</SelectItem>
-                    <SelectItem value="label2">Label 2</SelectItem>
-                    <SelectItem value="label3">Label 3</SelectItem>
+                    {labels.map((label) => (
+                      <SelectItem key={label.id} value={String(label.id)}>{label.labelName}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {errors.label && <p className="text-xs text-red-500 font-medium">{errors.label}</p>}
@@ -2250,18 +2389,18 @@ export default function NewReleasePage() {
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">
                   4
                 </span>
-                Upload Track
+                Upload
               </CardTitle>
-              <CardDescription>Upload your track file in WAV format</CardDescription>
+              <CardDescription>Upload your track</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               <div className="space-y-3">
-                <Label htmlFor="trackFile" className="text-base">
-                  Upload WAV File
+                <Label htmlFor="audioFile" className="text-base">
+                  Audio File
                 </Label>
                 <div className="flex items-center justify-center w-full">
                   <label
-                    htmlFor="track-upload"
+                    htmlFor="audio-upload"
                     className={cn(
                       "flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-xl cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors",
                       errors.audioFile && "border-red-500",
@@ -2269,17 +2408,19 @@ export default function NewReleasePage() {
                   >
                     {currentTrack.audioFile ? (
                       <div className="flex flex-col items-center justify-center">
-                        <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                          <FileAudio className="w-8 h-8 text-primary" />
+                        <div className="relative w-40 h-40 mb-2 rounded-xl overflow-hidden shadow-lg">
+                          <img
+                            src={URL.createObjectURL(currentTrack.audioFile) || "/placeholder.svg"}
+                            alt="Audio preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
                         </div>
-                        <p className="text-base font-medium">{currentTrack.audioFile.name}</p>
-                        <p className="text-sm text-muted-foreground mb-3">
-                          {(currentTrack.audioFile.size / (1024 * 1024)).toFixed(2)} MB
-                        </p>
+                        <p className="text-sm text-muted-foreground">{currentTrack.audioFile.name}</p>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-colors"
+                          className="mt-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-colors"
                           onClick={(e) => {
                             e.preventDefault()
                             setCurrentTrack({ ...currentTrack, audioFile: null })
@@ -2290,36 +2431,25 @@ export default function NewReleasePage() {
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                          <Upload className="w-8 h-8 text-primary" />
+                        <div className="w-16 h-16 mb-2 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+                          <FileAudio className="w-8 h-8 text-primary" />
                         </div>
-                        <p className="mb-2 text-base text-center">
+                        <p className="mb-2 text-sm text-center">
                           <span className="font-semibold">Click to upload</span> or drag and drop
                         </p>
-                        <p className="text-sm text-muted-foreground">WAV file only</p>
+                        <p className="text-xs text-muted-foreground">MP3 or WAV (up to 10 minutes)</p>
                       </div>
                     )}
                     <input
-                      id="track-upload"
+                      id="audio-upload"
                       type="file"
                       className="hidden"
-                      accept=".wav"
+                      accept=".mp3,.wav"
                       onChange={handleAudioUpload}
                     />
                   </label>
                 </div>
                 {errors.audioFile && <p className="text-xs text-red-500 font-medium">{errors.audioFile}</p>}
-              </div>
-
-              <div className="space-y-3 pt-2">
-                <Label htmlFor="notes" className="text-base">
-                  Additional Notes <span className="text-muted-foreground">(Optional)</span>
-                </Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Any additional information about this track"
-                  className="min-h-[120px] transition-all focus-visible:ring-primary/20"
-                />
               </div>
             </CardContent>
             <CardFooter className="flex justify-between pt-6 border-t">
@@ -2327,8 +2457,15 @@ export default function NewReleasePage() {
                 <ArrowLeft className="h-4 w-4" />
                 Previous
               </Button>
-              <Button onClick={addTrackToRelease} size="lg" className="gap-2">
-                Add Track
+              <Button onClick={addTrackToRelease} size="lg" className="gap-2" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Adding Track...
+                  </>
+                ) : (
+                  "Add Track"
+                )}
               </Button>
             </CardFooter>
           </Card>
@@ -2344,194 +2481,52 @@ export default function NewReleasePage() {
                 </span>
                 Review and Submit
               </CardTitle>
-              <CardDescription>Review your release information before submitting</CardDescription>
+              <CardDescription>Review your release before submission</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8 pt-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium flex items-center gap-2">
-                  <span className="w-2 h-6 bg-primary rounded-sm"></span>
-                  Release Information
-                </h3>
-                <div className="grid grid-cols-2 gap-6 p-5 border rounded-md bg-card/50">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Album/Single Name</p>
-                    <p className="font-medium text-base">{release.title || "Not set"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Release Date</p>
-                    <p className="font-medium text-base">
-                      {release.releaseDate ? format(release.releaseDate, "MMMM d, yyyy") : "Not set"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Meta Release Date</p>
-                    <p className="font-medium text-base">
-                      {release.metaReleaseDate ? format(release.metaReleaseDate, "MMMM d, yyyy") : "Not set"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Label</p>
-                    <p className="font-medium text-base">{release.label || "Not set"}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-sm text-muted-foreground mb-2">Artwork</p>
+            <CardContent className="space-y-6 pt-6">
+              <div className="rounded-xl border bg-card/50 p-6 space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 rounded-lg overflow-hidden shadow-md">
                     {release.artwork && (
-                      <div className="w-32 h-32 relative rounded-md overflow-hidden shadow-md">
-                        <img
-                          src={URL.createObjectURL(release.artwork) || "/placeholder.svg"}
-                          alt="Artwork preview"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
+                      <img
+                        src={URL.createObjectURL(release.artwork)}
+                        alt="Artwork"
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">{release.title}</h3>
+                    <p className="text-muted-foreground">{release.label}</p>
+                    {release.releaseDate && (
+                      <p className="text-sm text-muted-foreground">
+                        Releasing on: {format(release.releaseDate, "MMMM d, yyyy")}
+                      </p>
                     )}
                   </div>
                 </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium flex items-center gap-2">
-                    <span className="w-2 h-6 bg-blue-500 rounded-sm"></span>
-                    Tracks
-                  </h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setStep(2)}
-                    className="gap-1 hover:gap-2 transition-all"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Another Track
-                  </Button>
-                </div>
-
-                {release.tracks.length > 0 ? (
-                  <div className="space-y-6">
+                <Separator />
+                <div>
+                  <h4 className="font-medium mb-2">Tracks</h4>
+                  <div className="space-y-2">
                     {release.tracks.map((track, index) => (
-                      <div key={index} className="p-5 border rounded-md space-y-5 bg-card/50 shadow-sm">
-                        <div className="flex justify-between items-center border-b pb-3">
-                          <h4 className="font-medium text-lg flex items-center gap-2">
-                            <FileAudio className="h-5 w-5 text-primary" />
-                            {track.name}
-                          </h4>
-                          <Badge variant={track.explicit ? "destructive" : "outline"} className="font-medium">
-                            {track.explicit ? "Explicit" : "Clean"}
-                          </Badge>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground mb-1">Language</p>
-                            <p className="font-medium">{track.language}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground mb-1">Genre</p>
-                            <p className="font-medium">{track.genre}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground mb-1">Sub-Genre</p>
-                            <p className="font-medium">{track.subGenre || "Not specified"}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground mb-1">Mood</p>
-                            <p className="font-medium">{track.mood || "Not specified"}</p>
-                          </div>
-                          {track.isrc && (
-                            <div className="col-span-2">
-                              <p className="text-muted-foreground mb-1">ISRC</p>
-                              <p className="font-medium">{track.isrc}</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="space-y-3 border-t pt-3">
-                          <p className="font-medium">Artists</p>
-                          <div className="space-y-3">
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Primary Artists</p>
-                              <p className="font-medium">{track.primaryArtists.map((a) => a.name).join(", ")}</p>
-                            </div>
-                            {track.featuringArtists.length > 0 && (
-                              <div>
-                                <p className="text-sm text-muted-foreground mb-1">Featuring</p>
-                                <p className="font-medium">{track.featuringArtists.map((a) => a.name).join(", ")}</p>
-                              </div>
-                            )}
-                            {track.lyricists.length > 0 && (
-                              <div>
-                                <p className="text-sm text-muted-foreground mb-1">Lyricists</p>
-                                <p className="font-medium">{track.lyricists.map((a) => a.name).join(", ")}</p>
-                              </div>
-                            )}
-                            {track.composers.length > 0 && (
-                              <div>
-                                <p className="text-sm text-muted-foreground mb-1">Composers</p>
-                                <p className="font-medium">{track.composers.map((a) => a.name).join(", ")}</p>
-                              </div>
-                            )}
-                            {track.producers.length > 0 && (
-                              <div>
-                                <p className="text-sm text-muted-foreground mb-1">Producers</p>
-                                <p className="font-medium">{track.producers.map((a) => a.name).join(", ")}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-1">Audio File</p>
-                          <p className="flex items-center font-medium">
-                            <FileAudio className="h-4 w-4 mr-2 text-primary" />
-                            {track.audioFile?.name}
-                          </p>
-                        </div>
-
-                        {/* CRBTs Section */}
-                        {track.crbts.length > 0 && (
-                          <div className="space-y-2 border-t pt-3">
-                            <p className="text-sm text-muted-foreground">CRBTs</p>
-                            <div className="space-y-2">
-                              {track.crbts.map((crbt, index) => (
-                                <div key={index} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                                  <p className="font-medium">{crbt.name}</p>
-                                  <Badge variant="secondary">{crbt.timing}</Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                      <div key={index} className="flex justify-between items-center p-2 rounded-md bg-muted/50">
+                        <p>{track.name}</p>
+                        <Badge variant="outline">{track.genre}</Badge>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="p-10 border rounded-md bg-muted/40 text-center">
-                    <p className="text-muted-foreground mb-4">No tracks added yet</p>
-                    <Button variant="outline" onClick={() => setStep(2)} className="gap-2 hover:gap-3 transition-all">
-                      <Plus className="h-4 w-4" />
-                      Add Track
-                    </Button>
-                  </div>
-                )}
+                </div>
               </div>
             </CardContent>
             <CardFooter className="flex justify-between pt-6 border-t">
-              <Button
-                variant="outline"
-                onClick={() => setStep(4)}
-                size="lg"
-                className="gap-2 transition-all hover:gap-3"
-              >
+              <Button variant="outline" onClick={prevStep} size="lg" className="gap-2 transition-all hover:gap-3">
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                Previous
               </Button>
-              <Button
-                onClick={handleCreateRelease}
-                disabled={release.tracks.length === 0}
-                size="lg"
-                className="gap-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 hover:shadow-md transition-all"
-              >
+              <Button onClick={handleCreateRelease} size="lg" className="gap-2 transition-all hover:gap-3 bg-gradient-to-r from-green-500 to-green-600 text-white hover:shadow-lg">
                 <Sparkles className="h-4 w-4" />
-                Create Release
+                Submit Release
               </Button>
             </CardFooter>
           </Card>
